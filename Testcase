@@ -1,0 +1,5 @@
+testcase
+
+insert
+insert into usertbl values ('덕배', 2, 'db2', '010-1234-5678', '감기');
+insert into usertbl (username, userid) values ('춘배' , 'cnsqo12');
