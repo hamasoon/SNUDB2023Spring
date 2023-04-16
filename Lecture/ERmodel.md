@@ -2,7 +2,7 @@ ER Model
 ========
 ER Model
 --------
-2. Terms
+1. Terms
     - Entity
     - Attributes
     - Entity set

@@ -1,94 +1,81 @@
-from itertools import chain
-from lark import Lark, Transformer
+import json
+from lark import Lark
+from transfomer import MyTransformer, EXIT_STR
+from utils import *
+from berkeleydb import db
 
 # prefix for prompt like view
-PROMPT_PREFIX = "DB_2019-14355>" # prompt prefix
-EXIT_STR = 'exit;' # set exit
 REQUESTED_STR = 'requested' # requested surfix
 
-# Project 1-1 1st section CustomTransformer
-class MyTransformer(Transformer):
-    def __init__(self):
-        self.query_type = "" # save query type
-        self.error = False # if error occur, set self.error True
 
-    def command(self, items): 
-        if(items[0] == 'exit'): # handle exit case
-            return EXIT_STR
-        else:
-            return self.query_type
-        
-    def create_table_query(self, items): # handle create table query
-        self.query_type = "'CREATE TABLE'"
-        return items
-    
-    def drop_table_query(self, items): # handle drop table query
-        self.query_type = "'DROP TABLE'"
-        return items
-    
-    def describe_query(self, items): # handle describe query
-        self.query_type = "'DESCRIBE'"
-        return items
-    
-    def explain_query(self, items): # handle explain query
-        self.query_type = "'EXPLAIN'"
-        return items
-    
-    def desc_query(self, items): # handle desc query
-        self.query_type = "'DESC'"
-        return items
-    
-    def show_tables_query(self, items): # handle show tables query
-        self.query_type = "'SHOW TABLES'"
-        return items
-    
-    def select_query(self, items): # handle select query
-        self.query_type = "'SELECT'"
-        return items
-    
-    def insert_query(self, items): # handle insert query
-        self.query_type = "'INSERT'"
-        return items
-    
-    def delete_query(self, items): # handle delete query
-        self.query_type = "'DELETE'"
-        return items
-    
-    def update_query(self, items): # handle update query
-        self.query_type = "'UPDATE'"
-        return items
-    
+# myDB.open(DB_NAME, None, db.DB_HASH, db.DB_CREATE)
+with open('table_info.json') as f:
+    table_info = json.load(f)
 
 # open sql_parser
 with open('grammar.lark') as file:
     sql_parser = Lark(file.read(), start="command", lexer="basic")
 
-# Project 1-1 2nd section get input
-def get_input():
-    sql_input = input(PROMPT_PREFIX + " ")
+my_db = db.DB()
 
-    while True:
-        sql_input = sql_input.strip() 
+my_s = Schema(my_db)
 
-        if sql_input[-1] != ";": # check input end with semi-colon
-            sql_input += " " + input() # get_input until end with semi-colon
 
-        else: # remove white space
-            sql_input = sql_input.replace("\\r", "")
-            sql_input = sql_input.replace("\\n", "")
-            sql_input = sql_input.replace("\\t", "")
-            sql_input = ' '.join(sql_input.split())
-            break
+def error_message(e: Error):
+    if e.error_type == "TableExistenceError":
+        return "Create table has failed: table with the same name already exists"
+    elif e.error_type == "NoSuchTable":
+        return "No such table"
+    else:
+        return e.error_type
 
-    input_list = sql_input.split("; ")
 
-    for i in range(len(input_list)):
-        if input_list[i][-1] != ";":
-            input_list[i] += ";"
+def handle_request(data: ParsedData):
+    if data.query_type == "CREATE TABLE":
+        new_table = Table(data.table_name, data.column_names, my_db)
 
-    return input_list
+        for idx in range(len(data.column_names)):
+            is_p = data.column_names[idx] in data.primary
+            is_f = data.column_names[idx] in data.foreign.keys()
 
-program_end = True # prgram end trigger
+            if is_f:
+                new_table.add_columns(data.column_names[idx], data.dtypes[idx], data.dlength[idx],
+                                      data.nullable[idx] & is_p, is_p, is_f, data.foreign[data.column_names[idx]])
+            else:
+                new_table.add_columns(data.column_names[idx], data.dtypes[idx], data.dlength[idx],
+                                      data.nullable[idx] & is_p, is_p, is_f, "")
+
+        new_table.create_db_file()
+        my_s.add_table(new_table)
+
+        return f"'{data.table_name}' table is created"
+
+    elif data.query_type == "DROP TABLE":
+        os.remove(DB_PATH + data.table_name + DB_EXTENSION)
+        my_s.remove_table(data.table_name)
+        return f"'{data.table_name}' table is dropped"
+
+    elif data.query_type in ['DESCRIBE', 'DESC', 'EXPLAIN']:
+        print('-----------------------------------------------------------------')
+        print(f'table_name {data.table_name}')
+        print("{:<15} {:<8} {:<8} {:<8}".format('column_name', 'type', 'null', 'key'))
+        for col in my_s.tables[data.table_name].column.values():
+            print("{:<15} {:<8} {:<8} {:<8}".format(col.column_name, col.get_type(),
+                                               "Y" if col.nullable else "N", col.get_key_type()))
+        print('-----------------------------------------------------------------')
+
+    elif data.query_type == "SHOW TABLES":
+        print('------------------------')
+        for t_name in my_s.table_names:
+            print(t_name)
+        print('------------------------')
+
+    else:
+        return data.query_type
+
+
+program_end = True  # program end trigger
+MyTrans = MyTransformer(sch=my_s)
 
 # Project 1-1 3rd section main loop
 while program_end:
@@ -98,14 +85,18 @@ while program_end:
         try:
             output = sql_parser.parse(input_query[i])
         except Exception as e:
-            print(PROMPT_PREFIX, "Syntax error") # if error occur during querying, print Syntax error
+            print(PROMPT_PREFIX, "Syntax error")  # if error occur during querying, print Syntax error
             break
         else:
-            ret = MyTransformer().transform(output)
+            MyTrans.reset()
+            ret = MyTrans.transform(output)
 
-            if ret == EXIT_STR: # if get exit command, then end program
+            if ret == EXIT_STR:  # if get exit command, then end program
                 program_end = False
                 break
-            
+
+            elif MyTrans.error.error:
+                print(PROMPT_PREFIX, error_message(MyTrans.error))
+
             else:
-                print(PROMPT_PREFIX, ret, REQUESTED_STR) # print output
+                print(handle_request(MyTrans.data))
