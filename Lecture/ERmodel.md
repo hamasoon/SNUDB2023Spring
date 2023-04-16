@@ -2,10 +2,17 @@ ER Model
 ========
 ER Model
 --------
-1. Terms
-    - Entity
-    - Attributes
-    - Entity set
+1. What is E-R model?
+
+2. Terms
+- Entity
+- Attributes
+- Entity set
+- Completeness
+    - 모든 구성요소(features)가 schema에 나타나 있어야 함
+- Correctness
+    - syntatic correctness : 문법적(규칙)에 부합하는가
+    - semantic correctness : 의도와 부합하는가
 
 Extended E-R Features
 ---------------------
