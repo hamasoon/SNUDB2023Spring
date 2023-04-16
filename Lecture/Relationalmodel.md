@@ -8,8 +8,10 @@ Terms
 2. Attribute Types
 
 3. Relation Schema
+- curre
 
 4. Relation Instance
+- current value of a relation
 
 5. Keys
 - Super key
