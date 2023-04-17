@@ -8,8 +8,23 @@ Terms
     - representing the information of interest
     - for various programs that compose the compterized information system of an organization
 
-3. DBMS : Database Management System
-    - Why we need it?   
+3. DBMS : Database Management System : Newton
+    - Why we need it? : Porblem of File System
+        1. Data Redundancy(Inconsistency)
+            - Prevent overlapping of data
+            - Overlap cause in consistency of data
+        2. Difficult to access
+        3. Data integrity
+            - Some constraint of data to reflect real model (ex) age must bigger than 0)
+
+    - Advantage of DBMS
+        1. Atomicity
+            - if one of the process in query fail, then must rollback all database before query start
+        2. Concurrency Control
+        3. Secuirty
+            - Access permission control
+        4. Data isolation
+            - Each transaction must be independent to each other
 
     1. 데이터 중복(redundancy) 최소화: DBMS는 중복 데이터를 최소화하고 데이터 일관성을 유지합니다. 이를 통해 데이터의 정확성과 일관성을 높일 수 있습니다.
 
@@ -23,8 +38,7 @@ Terms
     5. 데이터 백업 및 복구: DBMS는 데이터 백업과 복구를 지원합니다. 이를 통해 데이터 손실 및 장애 상황에서도 데이터를 보호하고 복구할 수 있습니다.
 
     6. 데이터 일관성 유지(inconsistency): DBMS는 데이터 일관성을 유지하며 데이터간의 관계를 유지합니다. 이를 통해 데이터의 정확성과 일관성을 유지할 수 있습니다.
-
-    - Integrity : details in 4th chapter
+        - Integrity : details in 4th chapter
 
 4. Abstraction
     - physical - actual storage/ logical - data relationship/ view - data usage

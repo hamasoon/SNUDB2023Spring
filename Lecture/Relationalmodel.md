@@ -24,29 +24,33 @@ Relational Model
 
 Terms
 -----
-1. Relation
+1. Relation : Single file or table of database(Relation = Relation Schema + Relation Instance)
 
-2. Attribute Types
+2. Relation Schema : Define structure of relation
 
-3. Relation Schema
-- curre
+3. Relation Instance : Data inside relation
 
-4. Relation Instance
-- current value of a relation
+4. Attribute Types
+    - Atomic : must be minimal unit 
+        - exception : composite attribute, multi-valued attribute
 
 5. Keys
-- Super key
-    - set of attribute that sufficient enough to identify unique tuple
-- Candidate key
-    - minimal super key
-- Primary key
-    - representative candidate key &rarr; designer decide
-- Foreign key
-    - bridge key between two tables(kind of pointer)
+    - Super key
+        - set of attribute that sufficient enough to identify unique tuple
+    - Candidate key
+        - minimal super key
+    - Primary key
+        - representative candidate key &rarr; designer decide
+        - Not null & unique
+    - Foreign key
+        - bridge key between two tables(kind of pointer)
+        - type equality
+        - Referential integrity
+            - 특히, 참조하는 테이블의 primary key 값이 변경되거나 삭제될 때, 이에 의존하는 다른 테이블의 foreign key 값도 함께 변경되거나 삭제되는 것을 의미합니다.
 
 6. Query Languages
-- procedural : how to get data?
-- non procedural : what data are needed?(SQL)
+    - procedural : how to get data?
+    - non procedural : what data are needed?(SQL)
 
 Relational Algebra
 ------------------

@@ -5,15 +5,21 @@ ER Model
 1. What is E-R model?
 
 2. Terms
-- Entity
-- Attributes
-- Entity set
+- Degree : # of entity set that related to relationship set
+- Cardinality : number of entities to which another entitiy can be associated
 - Completeness
     - 모든 구성요소(features)가 schema에 나타나 있어야 함
 - Correctness
     - syntatic correctness : 문법적(규칙)에 부합하는가
     - semantic correctness : 의도와 부합하는가
 
+Weak Entitiy Sets
+-----------------
+- Definition
+    - Set that doesn't have sufficient attribute to form a primary key
+    - So, it's existence depends on other entity set
+- Primary key of weak entitiy set
+    - $primary\_key(weak\ entity\ set) = primary\_key(identifier) \cup discriminator(weak\ entity\ set) $
 Extended E-R Features
 ---------------------
 1. Specialization : Top - down approach
