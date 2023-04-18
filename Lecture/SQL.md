@@ -1,6 +1,6 @@
 Terms
 -----
-### 1. Integrity Constraints
+#### 1. Integrity Constraints
 - By ensuring quthorized changes to database do not result a inconsistency(guarding accidental damage)
     - set data type
     - unique
@@ -39,11 +39,15 @@ CREATE TABLE teaches(
 		on delete cascade,
 	foreign key (ID) references instructor
 	    on delete cascade
-	)
+)
 ```
 - select, from, where, rename - so used to... i will skip this
 - 
 
-cf) aggregation
+2. aggregation
 - 데이터베이스에서 집계(Aggregation)는 여러 개의 데이터 행(row)을 하나의 그룹으로 묶어서 새로운 결과를 만드는 연산입니다. 집계 함수는 합계, 평균, 최대, 최소 등이 있으며, 이러한 함수를 사용하여 그룹화된 데이터에 대한 정보를 분석할 수 있습니다.
 - Aggregation 함수들은 기본적으로 null value를 무시한다
+
+3. Referential integrity
+- 관계형 데이터베이스에서 두 개 이상의 테이블 간에 관계가 있는 경우, 이러한 관계가 항상 일관되고 유지되도록 보장하는 기능입니다.
+
