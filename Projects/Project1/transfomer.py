@@ -32,11 +32,17 @@ class MyTransformer(Transformer):
         return items
     
     def column_definition(self, items):
-        self.data.column_names.append(items[0].children[0].lower())
+        col_name = items[0].children[0].lower()
+        if col_name in self.data.column_names:
+            self.error = Error(True, 'DuplicateColumnDefError')
+
+        self.data.column_names.append(col_name)
 
         if items[1].children[0].lower() == CHAR:
             self.data.dtypes.append(items[1].children[0].lower())
             self.data.dlength.append(items[1].children[2].lower())
+            if int(items[1].children[2].lower()) <= 0:
+                self.error = Error(True, 'CharLengthError')
         else:
             self.data.dtypes.append(items[1].children[0].lower())
             self.data.dlength.append(-1)
@@ -47,15 +53,52 @@ class MyTransformer(Transformer):
             self.data.nullable.append(False)
 
     def primary_key_constraint(self, items):
-        key_count = len(items[2].children)
-        for i in range(1, key_count - 1):
-            self.data.primary.append(items[2].children[i].children[0].lower())
+        if len(self.data.primary) != 0:
+            self.error = Error(True, 'DuplicatePrimaryKeyDefError')
+        else:
+            key_count = len(items[2].children)
+            for i in range(1, key_count - 1):
+                self.data.primary.append(items[2].children[i].children[0].lower())
 
     def referential_constraint(self, items):
+        key_count = len(items[2].children)
+        ref_table = items[4].children[0].lower()
+
+        if ref_table not in self.sch.table_names:
+            self.error = Error(True, 'ReferenceTableExistenceError')
+        elif key_count - 2 != len(self.sch.tables[ref_table].primary_key):
+            self.error = Error(True, 'ReferenceNonPrimaryKeyError')
+        else:
+            for i in range(1, key_count - 1):
+                col_name = items[2].children[i].children[0].lower()
+                ref_col_name = items[5].children[i].children[0].lower()
+                col_type = self.data.dtypes[self.data.column_names.index(col_name)]
+
+                if ref_col_name not in self.sch.tables[ref_table].column_names:
+                    self.error = Error(True, 'ReferenceColumnExistenceError')
+                    break
+                elif ref_col_name not in self.sch.tables[ref_table].primary_key:
+                    self.error = Error(True, 'ReferenceNonPrimaryKeyError')
+                    break
+                elif col_name not in self.data.column_names:
+                    self.error = Error(True, 'NonExistingColumnDefError', '', col_name)
+                    break
+                elif col_type != self.sch.tables[ref_table].column[ref_col_name].data_type:
+                    self.error = Error(True, 'ReferenceTypeError')
+                    break
+                elif col_type == CHAR:
+                    col_length = int(self.data.dlength[self.data.column_names.index(col_name)])
+                    if col_length != self.sch.tables[ref_table].column[ref_col_name].data_length:
+                        print(col_length, self.sch.tables[ref_table].column[ref_col_name].data_length)
+                        self.error = Error(True, 'ReferenceTypeError')
+                        break
+
+                self.data.ref_table[col_name] = ref_table
+                self.data.ref_column[col_name] = ref_col_name
+
+
+        # How about col_count is different?
         # TODO
-        # Have to do this first!!!!!!!!!!
-        pass
-        #print(items[2])
 
     def drop_table_query(self, items): # handle drop table query
         self.data.query_type = "DROP TABLE"
@@ -63,6 +106,8 @@ class MyTransformer(Transformer):
 
         if self.data.table_name not in self.sch.table_names:
             self.error = Error(True, "NoSuchTable")
+        elif bool(self.sch.tables[self.data.table_name].referenced):
+            self.error = Error(True, "DropReferencedTableError")
 
         return items
     
@@ -93,13 +138,48 @@ class MyTransformer(Transformer):
     def show_tables_query(self, items):  # handle show tables query
         self.data.query_type = "SHOW TABLES"
         return items
-    
+
+    # from 절에 있는 테이블이 존재하지 않는다면, SelectTableExistenceError(#tabName)에 해당하는 메시지를 출력
     def select_query(self, items):  # handle select query
         self.data.query_type = "SELECT"
         return items
-    
+
+    # simply select query for only 1-2
+    # TODO in 1-3
+    def referred_table(self, items):
+        self.data.table_name = items[0].children[0].lower()
+        if self.data.table_name not in self.sch.table_names:
+            self.error = Error(True, "SelectTableExistenceError", self.data.table_name)
+        return items
+
+    # 테이블 컬럼 개수와 입력된 value 개수가 일치
+    # 각 컬럼의 자료형과 입력된 value 들의 자료형이 모두 일치
+    # not null에 해당하는 컬럼에는 null 값이 들어가지 않음
+    # 해당 오류들에 대한 건 1-3에서 수정할 것 TODO
     def insert_query(self, items):  # handle insert query
         self.data.query_type = "INSERT"
+        self.data.table_name = items[2].children[0].lower()
+        if self.data.table_name not in self.sch.table_names:
+            self.error = Error(True, "NoSuchTable")
+            return items
+
+        key_count = len(items[5].children)
+
+        for i in range(1, key_count - 1):
+            if items[3] != None:
+                column_name = items[3].children[i].children[0]
+            else:
+                column_name = self.sch.tables[self.data.table_name].column_names[i - 1]
+
+            value = items[5].children[i].children[0]
+
+            if self.sch.tables[self.data.table_name].column[column_name].data_type == CHAR:
+                value = value[1:len(value)-1]
+                if len(value) > self.sch.tables[self.data.table_name].column[column_name].data_length:
+                    value = value[:self.sch.tables[self.data.table_name].column[column_name].data_length]
+
+            self.data.values[column_name] = value
+
         return items
     
     def delete_query(self, items):  # handle delete query

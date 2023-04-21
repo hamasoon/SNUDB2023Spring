@@ -1,59 +1,85 @@
-import json
+import pickle
 from lark import Lark
 from transfomer import MyTransformer, EXIT_STR
 from utils import *
 from berkeleydb import db
 
 # prefix for prompt like view
-REQUESTED_STR = 'requested' # requested surfix
-
-
-# myDB.open(DB_NAME, None, db.DB_HASH, db.DB_CREATE)
-with open('table_info.json') as f:
-    table_info = json.load(f)
-
 # open sql_parser
 with open('grammar.lark') as file:
     sql_parser = Lark(file.read(), start="command", lexer="basic")
 
 my_db = db.DB()
 
-my_s = Schema(my_db)
+my_s = Schema()
 
+if os.path.exists(SCHEMA_DATA):
+    with open(SCHEMA_DATA, "rb") as fr:
+        my_s = pickle.load(fr)
 
 def error_message(e: Error):
-    if e.error_type == "TableExistenceError":
+    if e.error_type == 'DuplicateColumnDefError':  # Done
+        return 'Create table has failed: column definition is duplicated'
+    elif e.error_type == 'DuplicatePrimaryKeyDefError':  # Done
+        return 'Create table has failed: primary key definition is duplicated'
+    elif e.error_type == 'ReferenceTypeError': # Done
+        return 'Create table has failed: foreign key references wrong type'
+    elif e.error_type == 'ReferenceNonPrimaryKeyError':  # Done
+        return 'Create table has failed: foreign key references non primary key column'
+    elif e.error_type == 'ReferenceColumnExistenceError':  # Done
+        return 'Create table has failed: foreign key references non existing column'
+    elif e.error_type == 'ReferenceTableExistenceError':  # Done
+        return 'Create table has failed: foreign key references non existing table'
+    elif e.error_type == 'NonExistingColumnDefError':  # Done
+        return f'Create table has failed: {e.error_col} does not exist in column definition'
+    elif e.error_type == "TableExistenceError":  # Done
         return "Create table has failed: table with the same name already exists"
     elif e.error_type == "NoSuchTable":
         return "No such table"
-    else:
-        return e.error_type
+    elif e.error_type == 'CharLengthError':  # Done
+        return 'Char length should be over 0'
+    elif e.error_type == 'DropReferencedTableError':
+        return f'Drop table has failed: {e.error_table} is referenced by other table'
+    elif e.error_type == 'SelectTableExistenceError':  # error in FROM clause
+        return f'Selection has failed: {e.error_table} does not exist'
 
 
 def handle_request(data: ParsedData):
     if data.query_type == "CREATE TABLE":
-        new_table = Table(data.table_name, data.column_names, my_db)
+        new_table = Table(data.table_name, data.column_names)
 
         for idx in range(len(data.column_names)):
             is_p = data.column_names[idx] in data.primary
-            is_f = data.column_names[idx] in data.foreign.keys()
+            is_f = data.column_names[idx] in data.ref_table.keys()
+
+            # print (data.nullable[idx], is_p, is_f, data.nullable[idx] & (not is_p))
 
             if is_f:
                 new_table.add_columns(data.column_names[idx], data.dtypes[idx], data.dlength[idx],
-                                      data.nullable[idx] & is_p, is_p, is_f, data.foreign[data.column_names[idx]])
+                                      data.nullable[idx] & (not is_p), is_p, is_f, data.ref_table[data.column_names[idx]],
+                                      data.ref_column[data.column_names[idx]])
+                my_s.tables[data.ref_table[data.column_names[idx]]].referenced[(data.table_name, data.column_names[idx])] \
+                    = data.ref_column[data.column_names[idx]]
             else:
                 new_table.add_columns(data.column_names[idx], data.dtypes[idx], data.dlength[idx],
-                                      data.nullable[idx] & is_p, is_p, is_f, "")
+                                      data.nullable[idx] & (not is_p), is_p, is_f, "", "")
 
-        new_table.create_db_file()
+        my_db.open(DB_PATH + data.table_name + DB_EXTENSION, db.DB_HASH, db.DB_CREATE)
+        my_db.close()
+
         my_s.add_table(new_table)
 
-        return f"'{data.table_name}' table is created"
+        my_s.save_schema()
+
+        print(PROMPT_PREFIX + f" '{data.table_name}' table is created")
 
     elif data.query_type == "DROP TABLE":
         os.remove(DB_PATH + data.table_name + DB_EXTENSION)
         my_s.remove_table(data.table_name)
-        return f"'{data.table_name}' table is dropped"
+
+        my_s.save_schema()
+
+        print(PROMPT_PREFIX + f" '{data.table_name}' table is dropped")
 
     elif data.query_type in ['DESCRIBE', 'DESC', 'EXPLAIN']:
         print('-----------------------------------------------------------------')
@@ -69,9 +95,61 @@ def handle_request(data: ParsedData):
         for t_name in my_s.table_names:
             print(t_name)
         print('------------------------')
+    elif data.query_type == 'INSERT':
+        my_db.open(DB_PATH + data.table_name + DB_EXTENSION, db.DB_HASH)
 
+        value = ''
+        key = ''
+        for idx in range(len(my_s.tables[data.table_name].column_names)):
+            value += data.values[my_s.tables[data.table_name].column_names[idx]] + ';'
+
+        for idx in range(len(my_s.tables[data.table_name].primary_key)):
+            key += data.values[my_s.tables[data.table_name].primary_key[idx]] + ';'
+
+        value = value.encode()
+        key = key.encode()
+
+        my_s.tables[data.table_name].elem_count += 1
+
+        if key == '':
+            key = str(my_s.tables[data.table_name].elem_count).encode()
+
+        my_db.put(key, value)
+
+        my_db.close()
+        print(PROMPT_PREFIX + ' The row is inserted')
+
+    elif data.query_type == 'SELECT':
+        my_db.open(DB_PATH + data.table_name + DB_EXTENSION, db.DB_HASH)
+        column_names = my_s.tables[data.table_name].column_names
+
+        len_list = []
+        column_format = []
+        value_format = []
+        for name in column_names:
+            dlength = my_s.tables[data.table_name].column[name].data_length
+            dlength = (8 if len(name) + 2 < 8 else len(name) + 2) if len(name) + 2 > dlength \
+                else (8 if dlength + 2 < 8 else dlength + 2)
+            len_list.append(dlength)
+            column_format.append(f'{{:^{dlength}}}')
+            value_format.append(f'{{:<{dlength}}}')
+
+
+        bar = '+' + '+'.join(['-' * i for i in len_list]) + '+'
+        print(bar)
+        print('|' + '|'.join([column_format[i].format(column_names[i].capitalize()) for i in range(len(column_names))]) + '|')
+        print(bar)
+
+        cursor = my_db.cursor()
+        while x := cursor.next():
+            values = x[1].decode().split(';')[:-1]
+            print('|' + '|'.join([value_format[i].format(values[i]) for i in range(len(values))]) + '|')
+
+        print(bar)
+
+        my_db.close()
     else:
-        return data.query_type
+        print(data.query_type)
 
 
 program_end = True  # program end trigger
@@ -82,6 +160,7 @@ while program_end:
     input_query = get_input()
 
     for i in range(len(input_query)):
+        my_db = db.DB()
         try:
             output = sql_parser.parse(input_query[i])
         except Exception as e:
@@ -91,7 +170,7 @@ while program_end:
             MyTrans.reset()
             ret = MyTrans.transform(output)
 
-            if ret == EXIT_STR:  # if get exit command, then end program
+            if ret == EXIT_STR:
                 program_end = False
                 break
 
@@ -99,4 +178,4 @@ while program_end:
                 print(PROMPT_PREFIX, error_message(MyTrans.error))
 
             else:
-                print(handle_request(MyTrans.data))
+                handle_request(MyTrans.data)

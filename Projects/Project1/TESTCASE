@@ -1,0 +1,44 @@
+create table account (
+account_number int not null, 
+branch_name char(15), 
+primary key(account_number)
+); create table customer (
+account_number int,
+name char(15),
+primary key(name),
+foreign key(account_number) references account(account_number)
+); create table address (
+name char(15),
+address char(20),
+primary key(name),
+foreign key(name) references customer(name)
+);
+
+create table branch (
+branch_name char(14),
+code int not null,
+primary key(branch_name), 
+foreign key(branch_name) references account(account_number)
+);
+
+create table account (
+account_number int not null,
+account_number int not null,
+branch_name char(15),
+primary key(account_number)
+);
+
+create table account (
+account_number int not null,
+branch_name char(15),
+primary key(account_number),
+primary key(branch_name)
+);
+
+create table a (
+num int not null,
+name char(5),
+primary key(num)
+);
+
+insert into a values(9732, 'Perryridge');

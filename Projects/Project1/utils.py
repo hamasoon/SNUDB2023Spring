@@ -1,11 +1,12 @@
 import os.path
+import pickle
 from berkeleydb import db
 
 PROMPT_PREFIX = "DB_2019-14355>" # prompt prefix
 
 DB_PATH = 'db/'
 DB_EXTENSION = '.db'
-SCHEMA_DATA = DB_PATH + "meta" + DB_EXTENSION
+SCHEMA_DATA = "schema.pickle"
 TABLE_LIST = '__TABLE_LIST__'
 COLUMN_LIST = '__TABLE_LIST__'
 SEMI_COLON = ';'
@@ -26,9 +27,11 @@ COLUMN_DATA_LENGTH = 6
 
 
 class Error:
-    def __init__(self, error = False, error_type = "") -> None:
+    def __init__(self, error=False, error_type='', table='', col='') -> None:
         self.error = error
         self.error_type = error_type
+        self.error_table = table
+        self.error_col = col
 
 
 class ParsedData:
@@ -40,79 +43,57 @@ class ParsedData:
         self.dlength = []
         self.nullable = []
         self.primary = []
-        self.foreign = dict()
+        self.values = dict()
+        self.ref_table = dict()
+        self.ref_column = dict()
+
 
 class Schema:
-    def __init__(self, my_db) -> None:
-        self.my_db = my_db
+    def __init__(self) -> None:
         self.table_names = get_table_names(DB_PATH)
         self.tables = dict()
-            
-        for table_name in self.table_names:
-            self.tables[table_name] = self.parsing_table(table_name)
 
-        for t in self.tables.values():
-            for c in t.column.values():
-                if c.is_foreign and c.rtable != '':
-                    self.tables[c.reference_table].referenced.add(t)
     def add_table(self, new_table):
         if isinstance(new_table, Table):
             self.tables[new_table.table_name] = new_table
             self.table_names.append(new_table.table_name)
 
     def remove_table(self, table_name):
+        target = self.tables[table_name]
+
+        for col in target.column.values():
+            if col.reference_table != '':
+                ref_table = col.reference_table
+
+                del self.tables[ref_table].referenced[table_name, col.column_name]
+
         del self.tables[table_name]
         self.table_names.remove(table_name)
 
-    def parsing_table(self, table_name):
-        self.my_db.open(DB_PATH + table_name + DB_EXTENSION, dbtype=db.DB_HASH)
-
-        # cursor = self.my_db.cursor()
-        # while x := cursor.next():
-        #     print(x)
-
-        temp = Table(table_name, self.my_db.get(COLUMN_LIST.encode()).decode().split(SEMI_COLON), self.my_db)
-
-        temp.parsing_columns(self.my_db)
-
-        self.my_db.close()
-
-        return temp
+    def save_schema(self) -> None:
+        with open(SCHEMA_DATA,"wb") as fw:
+            pickle.dump(self, fw)
 
 
 class Table:
-    def __init__(self, table_name, column_names, my_db: db) -> None:
+    def __init__(self, table_name, column_names) -> None:
         self.table_name = table_name
         self.column_names = column_names
         self.column = dict()
-        self.referenced = set()
+        self.referenced = dict()
         self.primary_key = []
-        self.my_db = my_db
+        self.elem_count = 0
+        
+    def add_columns(self, col_name, dtype, dlength, n_ok, is_p, is_f, rtable, rcol_name) -> None:
+        new_col = Column(col_name, dtype, dlength, n_ok, is_p, is_f, rtable, rcol_name)
 
-    def parsing_columns(self, my_db) -> None:
-        for column_name in self.column_names:
-            if column_name != '':
-                col_name = COLUMNS_PREFIX + column_name
-                data = my_db.get(col_name.encode()).decode().split(SEMI_COLON)
-                print(data)
-                self.column[column_name] = Column(column_name, data[0], data[1], data[2], data[3], data[4], data[5])
-                if self.column[column_name].is_primary:
-                    self.primary_key.append(column_name)
-
-    def add_columns(self, col_name, dtype, dlength, n_ok, is_p, is_f, rtable) -> None:
-        new_col = Column(col_name, dtype, dlength, n_ok, is_p, is_f, rtable)
+        if is_p:
+            self.primary_key.append(col_name)
         self.column[col_name] = new_col
-
-    def create_db_file(self):
-        self.my_db.open(DB_PATH + self.table_name + DB_EXTENSION, db.DB_HASH, db.DB_CREATE)
-        self.my_db.put(COLUMN_LIST.encode(), list_to_bytes(self.column_names))
-        for name in self.column_names:
-            self.my_db.put(self.column[name].get_encoded_col_name(), self.column[name].to_byte_data())
-        self.my_db.close()
 
 
 class Column:
-    def __init__(self, col_name, dtype, dlength, n_ok, is_p, is_f, rtable) -> None:
+    def __init__(self, col_name, dtype, dlength, n_ok, is_p, is_f, rtable, rcol_name) -> None:
         self.column_name = col_name
         self.data_type = dtype
 
@@ -141,13 +122,21 @@ class Column:
         else:
             self.reference_table = rtable
 
-    def get_key_type(self):
-        if self.is_primary:
-            return 'PRI'
-        elif self.is_foreign:
-            return 'FOR'
+        if rcol_name == '':
+            self.reference_column_name = ''
         else:
-            return  ''
+            self.reference_column_name = rcol_name
+
+    def get_key_type(self):
+        ret = ''
+
+        if self.is_primary:
+            ret += 'PRI '
+
+        if self.is_foreign:
+            ret += 'FOR '
+
+        return ret
 
     def get_type(self):
         if self.data_type == CHAR:
@@ -157,14 +146,6 @@ class Column:
 
     def get_encoded_col_name(self):
         return (COLUMNS_PREFIX + self.column_name).encode()
-
-    def to_byte_data(self):
-        ret = (self.data_type + ';' + str(self.data_length) + ';' + str(self.nullable) + ';' + str(self.is_primary) + ';'
-               + str(self.is_foreign) + ';' + self.reference_table + ';').encode()
-
-        # print(ret)
-
-        return ret
 
 
 # Project 1-1 2nd section get input
