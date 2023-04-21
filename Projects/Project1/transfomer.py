@@ -58,6 +58,9 @@ class MyTransformer(Transformer):
         else:
             key_count = len(items[2].children)
             for i in range(1, key_count - 1):
+                if items[2].children[i].children[0].lower() in self.data.primary:
+                    self.error = Error(True, 'DuplicatePrimaryKeyDefError')
+                    break
                 self.data.primary.append(items[2].children[i].children[0].lower())
 
     def referential_constraint(self, items):
@@ -77,7 +80,7 @@ class MyTransformer(Transformer):
                 if ref_col_name not in self.sch.tables[ref_table].column_names:
                     self.error = Error(True, 'ReferenceColumnExistenceError')
                     break
-                elif ref_col_name not in self.sch.tables[ref_table].primary_key:
+                elif ref_col_name != self.sch.tables[ref_table].primary_key[i-1]:
                     self.error = Error(True, 'ReferenceNonPrimaryKeyError')
                     break
                 elif col_name not in self.data.column_names:
@@ -92,6 +95,9 @@ class MyTransformer(Transformer):
                         print(col_length, self.sch.tables[ref_table].column[ref_col_name].data_length)
                         self.error = Error(True, 'ReferenceTypeError')
                         break
+                elif col_name in self.data.ref_table.keys():
+                    self.error = Error(True, 'DuplicateColumnDefError')
+                    break
 
                 self.data.ref_table[col_name] = ref_table
                 self.data.ref_column[col_name] = ref_col_name

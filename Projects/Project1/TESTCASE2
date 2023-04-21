@@ -1,0 +1,186 @@
+create table account(
+account_number int not null,
+branch_name char(15), 
+customer_number int not null,
+primary key(account_number),
+foreign key(customer_number) references customer (customer_number)
+);
+
+create table customer( 
+customer_number int not null, 
+name char(50) not null, 
+age int,
+primary key(customer_number, name)
+);
+
+create table customer(
+asdf char(10) not null,
+primary key (asdf)
+);
+
+create table account(
+account_number int not null,
+branch_name char(15), 
+customer_number int not null,
+primary key(account_number),
+foreign key(customer_number) references customer (customer_number, l)
+);
+
+create table account(
+account_number int not null,
+branch_name char(15), 
+customer_number int not null,
+primary key(account_number),
+foreign key(customer_number) references customer (name)
+);
+
+create table account(
+account_number int not null,
+branch_name char(15), 
+customer_number int not null,
+primary key(account_number),
+foreign key(customer_number) references customerfa (customer_number)
+);
+
+create table account(
+account_number int not null,
+branch_name char(15), 
+customer_number int not null,
+primary key(account_number),
+foreign key(customer_number, customer_number) references customer (customer_number, customer_number)
+);  -> 수정 대상
+
+create table account(
+account_number int not null,
+branch_name char(15), 
+customer_number date not null,
+primary key(account_number),
+foreign key(customer_number) references customer (customer_number)
+);
+
+create table account(
+account_number int not null,
+branch_name char(15), 
+customer_number char(10) not null,
+primary key(account_number),
+foreign key(customer_number) references customer (customer_number)
+);
+
+create table account(
+account_number int not null,
+branch_name char(-25), 
+customer_number int not null,
+primary key(account_number),
+foreign key(customer_number) references customer (customer_number)
+);
+
+create table account(
+account_number int not null,
+branch_name char(15), 
+customer_number int not null,
+primary key(asdf),
+foreign key(customer_number) references customer (customer_number)
+);
+
+create table account(
+account_number int not null,
+branch_name char(15), 
+customer_number int not null,
+primary key(account_number),
+foreign key(fdssdf) references customer (customer_number)
+);
+
+create table account(
+account_number int not null,
+branch_name char(15), 
+customer_number int not null,
+primary key(account_number),
+primary key(branch_name),
+foreign key(customer_number) references customer (customer_number)
+);
+
+create table account(
+account_number int not null,
+branch_name char(15), 
+customer_number int not null,
+primary key(account_number, account_number),
+foreign key(customer_number) references customer (customer_number)
+);
+
+create table account(
+account_number int not null,
+branch_name char(15), 
+customer_number int not null,
+primary key(account_number),
+foreign key(customer_number) references customer (asdf)
+);
+
+create table account(
+account_number int not null,
+branch_name char(15), 
+customer_number int not null,
+primary key(account_number),
+foreign key(customer_number) references customer (age)
+);
+
+create table account(
+account_number int not null,
+branch_name char(15), 
+customer_name char(45) not null,
+primary key(account_number),
+foreign key(customer_name) references customer (name)
+);
+
+create table account(
+account_number int not null,
+branch_name char(15), 
+customer_name char(50) not null,
+primary key(account_number),
+foreign key(customer_name) references customer (name)
+);
+
+drop table account;
+
+create table account(
+account_number int not null,
+branch_name char(15), 
+customer_number int not null,
+primary key(account_number),
+foreign key(customer_number) references customer (customer_number)
+);
+
+drop table customer;
+
+desc customer;
+desc asdf;
+desc account;
+
+drop table customer;
+drop table asdf;
+drop table account;
+
+drop table customer;
+
+create table customer( 
+customer_number int not null, 
+name char(50) not null, 
+age int,
+primary key(customer_number)
+);
+
+create table account(
+account_number int not null,
+branch_name char(15), 
+customer_number int not null,
+primary key(account_number, customer_number),
+foreign key(customer_number) references customer (customer_number)
+);
+
+desc account
+desc customer;
+
+drop table *;
+
+desc *;
+
+exit;

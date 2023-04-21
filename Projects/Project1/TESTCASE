@@ -14,27 +14,6 @@ primary key(name),
 foreign key(name) references customer(name)
 );
 
-create table branch (
-branch_name char(14),
-code int not null,
-primary key(branch_name), 
-foreign key(branch_name) references account(account_number)
-);
-
-create table account (
-account_number int not null,
-account_number int not null,
-branch_name char(15),
-primary key(account_number)
-);
-
-create table account (
-account_number int not null,
-branch_name char(15),
-primary key(account_number),
-primary key(branch_name)
-);
-
 create table a (
 num int not null,
 name char(5),
@@ -42,3 +21,37 @@ primary key(num)
 );
 
 insert into a values(9732, 'Perryridge');
+
+create table a (
+num int not null,
+name char(10),
+address char(15),
+primary key(num, num)
+);
+
+create table a (
+num int not null,
+name char(10),
+address char(15),
+primary key(num, name)
+);
+create table b (
+code int not null,
+name char(10),
+salary int,
+foreign key(name, code) references a(name, num)
+);
+create table b (
+code int not null,
+name char(10),
+salary int,
+foreign key(code, name) references a(num, name)
+);
+create table c (
+code int not null,
+api char(8),
+foreign key(code, api) references a(num, name)
+);create table d (
+salary int not null,
+foreign key(salary) references b(salary)
+)
