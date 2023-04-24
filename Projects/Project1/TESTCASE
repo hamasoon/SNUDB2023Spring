@@ -34,24 +34,30 @@ num int not null,
 name char(10),
 address char(15),
 primary key(num, name)
-);
-create table b (
+);create table b (
 code int not null,
 name char(10),
 salary int,
 foreign key(name, code) references a(name, num)
-);
-create table b (
+);create table b (
 code int not null,
 name char(10),
 salary int,
 foreign key(code, name) references a(num, name)
-);
-create table c (
+); create table c (
 code int not null,
 api char(8),
+primary key(code),
+foreign key(code, api) references a(num, name)
+);create table c (
+code int not null,
+api char(10),
+primary key(code),
 foreign key(code, api) references a(num, name)
 );create table d (
 salary int not null,
 foreign key(salary) references b(salary)
-)
+);
+
+insert into account (account_number, branch_name) values (99999999, 'Richman');
+insert into account (ACCoUnt_nuMBer, BraNch_Name) values (99999999, 'Richman');
