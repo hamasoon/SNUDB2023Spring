@@ -64,5 +64,4 @@ salary int not null,
 foreign key(sdasd) references b(salary)
 );
 
-insert into account (account_number, branch_name) values (99999999, 'Richman');
-insert into account (ACCoUnt_nuMBer, BraNch_Name) values (99999999, 'Richman');
+insert into account (account_number, branch_name) values (99999999, 'Richman');insert into account (ACCoUnt_nuMBer, BraNch_Name) values (1, 'Poorman');insert into account (account_number, branch_name) values (8293154, 'RandomMan');insert into account (ACCoUnt_nuMBer, BraNch_Name) values (12345678, 'Ordering Man');
