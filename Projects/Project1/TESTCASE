@@ -59,5 +59,10 @@ salary int not null,
 foreign key(salary) references b(salary)
 );
 
+create table d (
+salary int not null,
+foreign key(sdasd) references b(salary)
+);
+
 insert into account (account_number, branch_name) values (99999999, 'Richman');
 insert into account (ACCoUnt_nuMBer, BraNch_Name) values (99999999, 'Richman');
