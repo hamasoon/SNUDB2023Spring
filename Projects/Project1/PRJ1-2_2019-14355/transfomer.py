@@ -114,7 +114,7 @@ class MyTransformer(Transformer):
         if self.data.table_name not in self.sch.table_names:
             self.error = Error(True, "NoSuchTable")
         elif bool(self.sch.tables[self.data.table_name].referenced):
-            self.error = Error(True, "DropReferencedTableError")
+            self.error = Error(True, "DropReferencedTableError", self.data.table_name)
 
         return items
     

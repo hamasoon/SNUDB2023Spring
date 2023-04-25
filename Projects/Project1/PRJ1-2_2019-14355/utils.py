@@ -176,7 +176,7 @@ def get_input():
         elif input_list[i][-1] != ";":
             input_list[i] += ";"
 
-    return input_list
+    return input_list[:-1]
 
 
 def list_to_bytes(data):
