@@ -68,14 +68,11 @@ class MyTransformer(Transformer):
         ref_key_count = len(items[5].children)
         ref_table = items[4].children[0].lower()
 
-        print(key_count, len(self.sch.tables[ref_table].primary_key))
-
         if ref_table not in self.sch.table_names:
             self.error = Error(True, 'ReferenceTableExistenceError')
         elif key_count - 2 != len(self.sch.tables[ref_table].primary_key) \
             | ref_key_count - 2 != len(self.sch.tables[ref_table].primary_key) :
             self.error = Error(True, 'ReferenceNonPrimaryKeyError')
-            print('ReferenceNonPrimaryKeyError')
         else:
             for i in range(1, key_count - 1):
                 col_name = items[2].children[i].children[0].lower()
@@ -84,11 +81,9 @@ class MyTransformer(Transformer):
 
                 if ref_col_name not in self.sch.tables[ref_table].column_names:
                     self.error = Error(True, 'ReferenceColumnExistenceError')
-                    print('ReferenceColumnExistenceError')
                     break
                 elif ref_col_name != self.sch.tables[ref_table].primary_key[i-1]:
                     self.error = Error(True, 'ReferenceNonPrimaryKeyError')
-                    print('ReferenceNonPrimaryKeyError - 2')
                     break
                 elif col_name not in self.data.column_names:
                     self.error = Error(True, 'NonExistingColumnDefError', '', col_name)

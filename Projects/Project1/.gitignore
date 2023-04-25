@@ -1,6 +1,8 @@
 *.docx
 *.zip
-.idea
-.vscode
-__pycache__
-.pptx
+.idea/
+.vscode/
+__pycache__/
+*.pptx
+*.db
+*.pickle

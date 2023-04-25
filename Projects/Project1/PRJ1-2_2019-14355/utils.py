@@ -4,7 +4,7 @@ from berkeleydb import db
 
 PROMPT_PREFIX = "DB_2019-14355>" # prompt prefix
 
-DB_PATH = 'db/'
+DB_PATH = 'DB/'
 DB_EXTENSION = '.db'
 SCHEMA_DATA = "schema.pickle"
 TABLE_LIST = '__TABLE_LIST__'
