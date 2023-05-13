@@ -1,0 +1,97 @@
+insert into apply values('1234', 123, 123);
+insert into students (name) values ('munseong');
+
+insert into students (id, name) values ('2017-17998', 'Park Kyung Rok')
+;insert into students (name, id) values ('Bae Mun Sung', '2019-14355')
+;insert into students values ('1234-56789', 'Jihoon Kim')
+;insert into students values ('9876-54321', 'Yuna Lee')
+;insert into students values ('4321-09876', 'Minseok Park')
+;insert into students values ('5678-90123', 'Soyeon Choi')
+;insert into students values ('7890-12345', 'Junghoon Kang')
+;insert into students values ('0987-65432', 'Jiyeon Han')
+;insert into students values ('2345-67890', 'Seojin Lee')
+;insert into students values ('8765-43210', 'Minho Kim')
+;insert into students values ('3456-78901', 'Jiwon Park')
+;insert into students values ('6789-01234', 'Dongwoo Lee')
+;insert into students values ('0123-45678', 'Yeonju Kim')
+;insert into students values ('4567-89012', 'Haeun Jung')
+;insert into students values ('8901-23456', 'Jisoo Lee')
+;insert into students values ('3210-98765', 'Hyunwoo Kim')
+;insert into students values ('6543-21098', 'Sooyeon Park')
+;insert into students values ('0221-12312', 'Joonho Choi');
+
+insert into students (id) values ('2023-10101');
+
+ insert into lectures values (10101, 'Descrete Math', 150)
+;insert into lectures values (10201, 'Programming Practice', 80)
+;insert into lectures values (20101, 'Computer Architecture', 180)
+;insert into lectures values (20201, 'Computer Programming', 150)
+;insert into lectures values (20301, 'Data Structure', 150)
+;insert into lectures values (30101, 'System Programming', 150)
+;insert into lectures values (30201, 'Algorithm', 180)
+;insert into lectures values (30301, 'Automata Theory', 40)
+;insert into lectures values (30401, 'Database', 50)
+;insert into lectures values (30501, 'Computer Language', 100)
+;insert into lectures values (40101, 'Operating System', 80)
+;insert into lectures values (40201, 'Machine Learning', 150)
+;insert into lectures values (40301, 'Computer Graphics', 50)
+;insert into lectures values (40401, 'Natural Language Process', 40)
+;insert into lectures values (40501, 'Computer Vision', 40);
+
+
+
+insert into ref values (10101)
+;insert into ref values (10201)
+;insert into ref values (20101)
+;insert into ref values (20201)
+;insert into ref values (20301)
+;insert into ref values (30101)
+;insert into ref values (30201)
+;insert into ref values (30301)
+;insert into ref values (30401)
+;insert into ref values (30501)
+;insert into ref values (40101)
+;insert into ref values (40201)
+;insert into ref values (40301)
+;insert into ref values (40401)
+;insert into ref values (40501);
+
+insert into apply values ('2019-14355', 10101, 2023-02-18);
+
+select name from lectures where not id > 20000;
+select name from lectures where not(id > 40000 or capacity > 80) and id > 20000;
+select name from lectures where id > 20000 and capacity > 100 or name = 'Programming Practice';
+
+select name from students where name is null;
+
+delete from students where name = 'Bae Su Hyun' or id = '2019-14355';
+delete from students where name = 'Bae Su Hyun';
+delete from students where name = 'Bae Su hyun';
+delete from students where name = 123;
+
+delete from lectures where (id = 10101) OR (lectures.id = 10301);
+
+select ref.id from ref, lectures where capacity < 100 and ref.id = lectures.id;
+select ref.id from lectures, ref where ref.id = lectures.id and not lectures.capacity < 100; 
+
+select apply_date from apply where apply_date < 2023-03-01;
+
+select lectures.name 
+from apply, lectures, students 
+where students.name = 'Bae Mun Sung' and 
+apply.s_id = students.id and 
+apply.l_id = lectures.id;
+
+delete
+from students
+where not id = '2019-14355' or
+    name = 'Bae Su Hyun' and
+    not ( not (name is not null or
+    name = id));
+
+select students.id, lectures.id
+from students, lectures
+where students.name = 'Bae Su Hyun' or capacity = 180;
+
+
+delete from students;
