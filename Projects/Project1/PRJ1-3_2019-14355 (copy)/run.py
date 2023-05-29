@@ -66,12 +66,12 @@ class Record:
         col_data = raw[1].decode().split(';')[:-1]
 
         for (idx, c_name) in enumerate(my_s.tables[t_name].column_names):
-            if my_s.tables[t_name].column[c_name].data_type == INT:
+            if col_data[idx] == NULL:
+                col_data[idx] = 'null'
+            elif my_s.tables[t_name].column[c_name].data_type == INT:
                 col_data[idx] = int(col_data[idx])
             elif my_s.tables[t_name].column[c_name].data_type == DATE:
                 col_data[idx] = datetime.datetime.strptime(col_data[idx], '%Y-%m-%d')
-            elif col_data[idx] == NULL:
-                col_data[idx] = 'null'
         
         return col_data
     
@@ -365,12 +365,12 @@ def handle_request(data: ParsedData, operation):
         key = ''
         
         # set key as primary attributes value
-        for idx in range(len(my_s.tables[data.table_name].column_names)):
-            value += data.values[my_s.tables[data.table_name].column_names[idx]] + ';'
+        for col in my_s.tables[data.table_name].column.values():
+            value += data.values[col.column_name] + ';'
 
         # value is whole data's composition
-        for idx in range(len(my_s.tables[data.table_name].primary_key)):
-            key += data.values[my_s.tables[data.table_name].primary_key[idx]] + ';'
+        for p_name in my_s.tables[data.table_name].primary_key:
+            key += data.values[p_name] + ';'
 
         value = value.encode()
         key = key.encode()
@@ -447,7 +447,7 @@ def handle_request(data: ParsedData, operation):
                 cnt += 1
 
         my_db.close()
-        print(PROMPT_PREFIX + f' {cnt} row(s) is inserted')
+        print(PROMPT_PREFIX + f' {cnt} row(s) are deleted')
     
     else:
         print(data.query_type)

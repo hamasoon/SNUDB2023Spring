@@ -35,6 +35,7 @@ NULL_CHECK = 'null_check'
 VALUE_COMP = 'value_compare'
 COLUMN_COMP = 'column_compare'
 
+# class for record error tpye, table name, col name
 class Error:
     def __init__(self, error=False, error_type='', table='', col='') -> None:
         self.error = error
@@ -43,6 +44,7 @@ class Error:
         self.error_col = col
 
 
+# class for record parsed data from sql input
 class ParsedData:
     def __init__(self) -> None:
         self.query_type = ""
@@ -60,6 +62,8 @@ class ParsedData:
         self.conditions: list[Condition] = [] 
         self.operations = []
 
+
+# class for save single compand of condition statement
 class Compand:
     def __init__(self) -> None:
         self.table_name = ""
@@ -67,6 +71,8 @@ class Compand:
         self.data_type = ""
         self.value = ""
 
+
+# class for save data of whole condition statement
 class Condition:
     def __init__(self) -> None:
         self.comp_type = VALUE_COMP
@@ -77,23 +83,8 @@ class Condition:
         self.col_name = ''
         self.is_not = False
 
-    def reverse(self) -> None:
-        self.is_not = ~self.is_not
 
-        if self.comp_op == '=':
-            self.comp_op = '!='
-        if self.comp_op == '!=':
-            self.comp_op = '='
-        if self.comp_op == '<':
-            self.comp_op = '>='
-        if self.comp_op == '>':
-            self.comp_op = '<='
-        if self.comp_op == '<=':
-            self.comp_op = '>'
-        if self.comp_op == '>=':
-            self.comp_op = '<'
-
-
+# class for saving schema of database
 class Schema:
     def __init__(self) -> None:
         self.table_names = get_table_names(DB_PATH)
@@ -121,6 +112,7 @@ class Schema:
             pickle.dump(self, fw)
 
 
+# class of table information
 class Table:
     def __init__(self, table_name, column_names) -> None:
         self.table_name = table_name
@@ -139,6 +131,7 @@ class Table:
         self.column[col_name] = new_col
     
 
+# class of column information
 class Column:
     def __init__(self, col_name, dtype, dlength, n_ok, is_p, is_f, rtable, rcol_name) -> None:
         self.column_name = col_name
@@ -203,7 +196,9 @@ def get_input():
     while True:
         sql_input = sql_input.strip()
 
-        if sql_input[-1] != ";": # check input end with semi-colon
+        if sql_input == '':
+            sql_input += " " + input()
+        elif sql_input[-1] != ";": # check input end with semi-colon
             sql_input += " " + input() # get_input until end with semi-colon
 
         else: # remove white space

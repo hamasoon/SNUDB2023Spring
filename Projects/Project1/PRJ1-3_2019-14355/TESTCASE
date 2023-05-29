@@ -38,7 +38,12 @@ insert into students (id) values ('2023-10101');
 ;insert into lectures values (40401, 'Natural Language Process', 40)
 ;insert into lectures values (40501, 'Computer Vision', 40);
 
+insert into lectures values ('null', 'null', 'null');
+insert into lectures values (20401, 'Logic Design', 'null');
 
+insert into students values('2018-12414', 'null');
+
+select apply_date from lectures, ref, apply where lectures.id = ref.id and lectures.id = l_id and (name = 'Computer Programming' or capacity is null);  
 
 insert into ref values (10101)
 ;insert into ref values (10201)
@@ -56,7 +61,35 @@ insert into ref values (10101)
 ;insert into ref values (40401)
 ;insert into ref values (40501);
 
-insert into apply values ('2019-14355', 10101, 2023-02-18);
+insert into apply values ('2019-14355', 10101, 2023-02-18)
+;insert into apply values ('2019-14355', 10201, 2023-02-18)
+;insert into apply values ('2019-14355', 20101, 2023-02-18)
+;insert into apply values ('2019-14355', 30101, 2023-02-19)
+;insert into apply values ('2019-14355', 40101, 2023-02-19)
+;insert into apply values ('2019-14355', 30301, 2023-02-19)
+;insert into apply values ('2019-14355', 30501, 2023-02-20)
+;insert into apply values ('2019-14355', 40301, 2023-02-20)
+;insert into apply values ('2019-14355', 40201, 2023-02-20);
+
+insert into apply values ('2017-17998', 10101, 2023-02-18)
+;insert into apply values ('2017-17998', 10201, 2023-02-18)
+;insert into apply values ('2017-17998', 20101, 2023-02-18)
+;insert into apply values ('2017-17998', 30101, 2023-02-19)
+;insert into apply values ('2017-17998', 30501, 2023-02-20)
+;insert into apply values ('2017-17998', 40301, 2023-02-20);
+
+insert into apply values ('1234-56789', 30101, 2023-02-19)
+;insert into apply values ('1234-56789', 40101, 2023-02-19)
+;insert into apply values ('1234-56789', 30301, 2023-02-19)
+;insert into apply values ('1234-56789', 40301, 2023-02-20);
+
+insert into apply values ('0221-12312', 10101, 2023-02-18)
+;insert into apply values ('0221-12312', 20101, 2023-02-18)
+;insert into apply values ('0221-12312', 30101, 2023-02-19)
+;insert into apply values ('0221-12312', 30501, 2023-02-20)
+;insert into apply values ('0221-12312', 40201, 2023-02-20);
+
+insert into apply (ads, l_id) values ('2023-10101', 10201);
 
 select name from lectures where not id > 20000;
 select name from lectures where not(id > 40000 or capacity > 80) and id > 20000;

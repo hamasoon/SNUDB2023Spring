@@ -291,36 +291,39 @@ class MyTransformer(Transformer):
 
             # column name existence check
             if column_name not in self.sch.tables[self.data.table_name].column_names:
-                self.error = Error(True, "InsertColumnExistenceError", column_name)
+                self.error = Error(True, "InsertColumnExistenceError", "", column_name)
                 return items
 
-            # nullable check
-            if ~self.sch.tables[self.data.table_name].column[column_name].nullable:
-                if value == 'null':
-                    self.error = Error(True, "InsertColumnNonNullableError", column_name)
-                    return items
-
-            # data type matching check
-            if items[5].children[i].children[0].type == 'STR':
-                if self.sch.tables[self.data.table_name].column[column_name].data_type != CHAR:
+            if value != "'null'":
+                # data type matching check
+                if items[5].children[i].children[0].type == 'STR':
+                    if self.sch.tables[self.data.table_name].column[column_name].data_type != CHAR:
+                        self.error = Error(True, "InsertTypeMismatchError")
+                        return items
+                elif items[5].children[i].children[0].type.lower() != \
+                    self.sch.tables[self.data.table_name].column[column_name].data_type:
                     self.error = Error(True, "InsertTypeMismatchError")
                     return items
-            elif items[5].children[i].children[0].type.lower() != \
-                self.sch.tables[self.data.table_name].column[column_name].data_type:
-                self.error = Error(True, "InsertTypeMismatchError")
-                return items
+                    
+                # slicing data if datatype is str and lnger than char length
+                if self.sch.tables[self.data.table_name].column[column_name].data_type == CHAR:
+                    value = value[1:len(value)-1]
+                    if len(value) > self.sch.tables[self.data.table_name].column[column_name].data_length:
+                        value = value[:self.sch.tables[self.data.table_name].column[column_name].data_length]
+                        
+            # nullable check
+            else:
+                if not self.sch.tables[self.data.table_name].column[column_name].nullable:
+                    self.error = Error(True, "InsertColumnNonNullableError", "", column_name)
+                    return items
                 
-            # slicing data if datatype is str and lnger than char length
-            if self.sch.tables[self.data.table_name].column[column_name].data_type == CHAR:
                 value = value[1:len(value)-1]
-                if len(value) > self.sch.tables[self.data.table_name].column[column_name].data_length:
-                    value = value[:self.sch.tables[self.data.table_name].column[column_name].data_length]
 
             self.data.values[column_name] = value
 
         for k, v in self.data.values.items():
             if not self.sch.tables[self.data.table_name].column[k].nullable and v == 'null':
-                self.error = Error(True, "InsertColumnNonNullableError", k)
+                self.error = Error(True, "InsertColumnNonNullableError", "", k)
                 return items
 
         return items
@@ -346,7 +349,7 @@ class MyTransformer(Transformer):
 
             # case 2 : null checking conditions
             else:
-                cond.table_name == self.data.table_name
+                cond.table_name = self.data.table_name
                 
                 # table existence check
                 if cond.table_name not in self.sch.table_names:
