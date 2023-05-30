@@ -1,4 +1,4 @@
-
+import pymysql
 
 # Problem 1 (5 pt.)
 def initialize_database():
@@ -15,7 +15,7 @@ def reset():
     # YOUR CODE GOES HERE
     pass
 
-# Problem 2 (3 pt.)
+# Problem 2 (4 pt.)
 def print_movies():
     # YOUR CODE GOES HERE
 
@@ -31,7 +31,7 @@ def print_users():
     # YOUR CODE GOES HERE
     pass
 
-# Problem 4 (3 pt.)
+# Problem 4 (4 pt.)
 def insert_movie():
     # YOUR CODE GOES HERE
     title = input('Movie title: ')
@@ -60,7 +60,7 @@ def remove_movie():
     # YOUR CODE GOES HERE
     pass
 
-# Problem 5 (3 pt.)
+# Problem 5 (4 pt.)
 def insert_user():
     # YOUR CODE GOES HERE
     name = input('User name: ')
@@ -160,7 +160,6 @@ def recommend_popularity():
 
     # error message
     print(f'User {user_id} does not exist')
-    print('Rating does not exist')
     # YOUR CODE GOES HERE
     pass
 
@@ -178,7 +177,7 @@ def recommend_item_based():
     pass
 
 
-# Total of 60 pt.
+# Total of 70 pt.
 def main():
     # initialize database
     reset()
