@@ -1,34 +1,53 @@
 import pymysql
+from DB import Database
 
-# Problem 1 (5 pt.)
+my_db = Database.instance()
+
 def initialize_database():
-    # YOUR CODE GOES HERE
+    my_db.initialize_database()
 
     print('Database successfully initialized')
-    # YOUR CODE GOES HERE
-    pass
 
 # Problem 15 (5 pt.)
 def reset():
-    # YOUR CODE GOES HERE
-
-    # YOUR CODE GOES HERE
-    pass
+    agreement = input('Are you sure? (y/n) ').lower()
+    
+    if agreement == 'y':
+        my_db.initialize_database()
+        print('Database successfully reset')
+    else:
+        print('Database reset aborted')
 
 # Problem 2 (4 pt.)
+# 영화 ID, 제목, 감독, 원래 가격, 평균 예매 가격, 예매자 수, 평균 평점 순으로 출력한다.
 def print_movies():
-    # YOUR CODE GOES HERE
-
-    
-    # YOUR CODE GOES HERE
-    pass
+    with my_db.connection.cursor() as cursor:
+        cursor.execute('''
+            SELECT Movie.title, Movie.director, Movie.price, AVG(Book.reserve_price), Count(Book.person_id), AVG(Book.rating)
+            FROM Movie LEFT OUTER JOIN Book ON Movie.ID = Book.mov_id 
+            GROUP BY Movie.ID
+            ORDER BY ID ASC
+            ''')
+        result = cursor.fetchall()
+        print('-' * 140)
+        print(str.format('{:^70}{:^35}{:^15}{:^15}{:^15}{:^15}', 'TITLE', 'DIRECTOR', 'ORIGIN PRICE', 'AVG BOOK PRICE', 'COUNT BOOK', 'AVG RATING'))
+        for title, director, origin_price, avg_price, book_count, avg_rating in result:
+            if avg_rating == None:
+                avg_rating = "None"
+            print(f'{title:<70}{director:<35}{origin_price:<15}{int(avg_price):<15}{book_count:<15}{avg_rating:<15}')
+        print('-' * 140)
 
 # Problem 3 (3 pt.)
 def print_users():
-    # YOUR CODE GOES HERE
+    with my_db.connection.cursor() as cursor:
+        cursor.execute('SELECT * FROM Person ORDER BY ID ASC')
+        result = cursor.fetchall()
+        print('-' * 140)
+        print(str.format('{:^40}{:^20}{:^20}', 'name', 'age', 'class'))
+        for _, name, age, customer_class in result:
+            print(f'{name:<40}{age:<20}{customer_class:<20}')
+        print('-' * 140)
 
-    
-    # YOUR CODE GOES HERE
     pass
 
 # Problem 4 (4 pt.)
@@ -37,27 +56,46 @@ def insert_movie():
     title = input('Movie title: ')
     director = input('Movie director: ')
     
-    # error message
-    print(f'Movie {title} already exists')
-    print('Movie price should be from 0 to 100000')
+    with my_db.connection.cursor() as cursor:
+        # Check if movie already exists
+        cursor.execute('SELECT COUNT(ID) FROM Movie WHERE title = %s', title)
+        result = cursor.fetchone()
+        if result[0] != 0:
+            # error message
+            print(f'Movie {title} already exists')
+            return
+        else:
+            # Get price
+            price = input('Movie price: ')
+            # Check if price is valid
+            if int(price) >= 0 and int(price) <= 100000:
+                cursor.execute('INSERT INTO Movie (title, director, price) VALUES (%s, %s, %s)', (title, director, price))
+                my_db.connection.commit()
+            else:
+                print('Movie price should be from 0 to 100000')
 
     # success message
     print('One movie successfully inserted')
-    # YOUR CODE GOES HERE
-    pass
+    
 
 # Problem 6 (4 pt.)
 def remove_movie():
-    # YOUR CODE GOES HERE
     movie_id = input('Movie ID: ')
-
-
-    # error message
-    print(f'Movie {movie_id} does not exist')
+    
+    with my_db.connection.cursor() as cursor:
+        # Check if movie exists
+        cursor.execute('SELECT COUNT(ID) FROM Movie WHERE ID = %s', movie_id)
+        result = cursor.fetchone()
+        if result[0] == 0:
+            # error message
+            print(f'Movie {movie_id} does not exist')
+            return
+        else:
+            cursor.execute('DELETE FROM Movie WHERE ID = %s', movie_id)
+            my_db.connection.commit()
 
     # success message
     print('One movie successfully removed')
-    # YOUR CODE GOES HERE
     pass
 
 # Problem 5 (4 pt.)
@@ -66,11 +104,24 @@ def insert_user():
     name = input('User name: ')
     age = input('User age: ')
     
-
-    # error message
-    print('User age should be from 12 to 110')
-    print(f'The user ({name}, {age}) already exists')
-    print('User class should be basic, premium or vip')
+    if age < 12 or age > 110:
+         print('User age should be from 12 to 110')
+    
+    with my_db.connection.cursor() as cursor:
+        cursor.execute('SELECT COUNT(ID) FROM Person WHERE name = %s', name)
+        result = cursor.fetchone()
+        if result[0] != 0:
+            # error message
+            print(f'The user ({name}, {age}) already exists')
+            return
+        else:
+            customer_class = input('User class: ')
+            if customer_class == 'basic' or customer_class == 'premium' or customer_class == 'vip':
+                cursor.execute('INSERT INTO Person (name, age, customer_class) VALUES (%s, %s, %s)', (name, age, customer_class))
+                my_db.connection.commit()
+            else:
+                print('User class should be basic, premium or vip')
+                return
     
     # success message
     print('One user successfully inserted')
@@ -82,9 +133,17 @@ def remove_user():
     # YOUR CODE GOES HERE
     user_id = input('User ID: ')
 
-
-    # error message
-    print(f'User {user_id} does not exist')
+    with my_db.connection.cursor() as cursor:
+        cursor.execute('SELECT COUNT(ID) FROM Person WHERE ID = %s', user_id)
+        result = cursor.fetchone()
+        
+        if result[0] == 0:
+            # error message
+            print(f'User {user_id} does not exist')
+            return
+        else:
+            cursor.execute('DELETE FROM Person WHERE ID = %s', user_id)
+            my_db.connection.commit()
 
     # success message
     print('One user successfully removed')
@@ -97,12 +156,34 @@ def book_movie():
     movie_id = input('Movie ID: ')
     user_id = input('User ID: ')
 
+    with my_db.connection.cursor() as cursor:
+        # Check movie exists
+        cursor.execute("SELECT COUNT(ID) FROM Movie WHERE ID = %s", movie_id)
+        result = cursor.fetchone()
+        if result[0] == 0:
+            # error message
+            print(f'Movie {movie_id} does not exist')
+            return
 
-    # error message
-    print(f'Movie {movie_id} does not exist')
-    print(f'User {user_id} does not exist')
-    print(f'User {user_id} already booked movie {movie_id}')
-    print(f'Movie {movie_id} has already been fully booked')
+        # Check user exists
+        cursor.execute("SELECT COUNT(ID) FORM Person WHERE ID = %s", user_id)
+        result = cursor.fetchone()
+        if result[0] == 0:
+            print(f'User {user_id} does not exist')
+            return
+        
+        # Check same booking already exist
+        cursor.execute("SELECT COUNT(*) FROM Booking WHERE mov_id = %s AND usr_id = %s", (movie_id, user_id))
+        result = cursor.fetchone()
+        if result[0] != 0:
+            print(f'User {user_id} already booked movie {movie_id}')
+            return
+        
+        cursor.execute("SELECT COUNT(*) FROM Booking WHERE mov_id = %s", movie_id)
+        result = cursor.fetchone()
+        if result[0] >= 10:
+            print(f'Movie {movie_id} has already been fully booked')
+            return
 
     # success message
     print('Movie successfully booked')
@@ -179,8 +260,7 @@ def recommend_item_based():
 
 # Total of 70 pt.
 def main():
-    # initialize database
-    reset()
+    my_db.initialize_database()
 
     while True:
         print('============================================================')

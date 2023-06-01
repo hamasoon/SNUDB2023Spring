@@ -20,7 +20,7 @@ class Database:
     
 
     def __init__(self) -> None:
-        self.initialize_database()
+        self.connection = None
         
     
     def __del__(self) -> None:
@@ -82,28 +82,16 @@ class Database:
                     CHECK (rating >= 1 AND rating <= 5)
                 )""")
         
-            # test creation
-            print(cursor.execute("SHOW TABLES"))
-            cursor.execute("DESC Movie")
-            cursor.execute("DESC Person")
-            cursor.execute("DESC Book")
-        
         self.connection.close()
         
-            # Insert data from csv file
+        # Insert data from csv file
         self.loading_csv()
             
         self.make_connection()
-        
-        with self.connection.cursor() as cursor:
-            # test creation
-            print(cursor.execute("SHOW TABLES"))
-            cursor.execute("DESC Movie")
-            cursor.execute("DESC Person")
-            cursor.execute("DESC Book")
 
     
     def loading_csv(self) -> None:
+        pd.set_option('mode.chained_assignment',  None)
         raw_data = pd.read_csv('data.csv')
 
         self.movie_table = raw_data[['title', 'director', 'price']].drop_duplicates().reset_index(drop=True)
