@@ -23,30 +23,38 @@ def reset():
 def print_movies():
     with my_db.connection.cursor() as cursor:
         cursor.execute('''
-            SELECT Movie.title, Movie.director, Movie.price, AVG(Book.reserve_price), Count(Book.person_id), AVG(Book.rating)
+            SELECT Movie.ID, Movie.title, Movie.director, Movie.price, AVG(Book.reserve_price), Count(Book.person_id), AVG(Book.rating)
             FROM Movie LEFT OUTER JOIN Book ON Movie.ID = Book.mov_id 
             GROUP BY Movie.ID
             ORDER BY ID ASC
             ''')
         result = cursor.fetchall()
-        print('-' * 140)
-        print(str.format('{:^70}{:^35}{:^15}{:^15}{:^15}{:^15}', 'TITLE', 'DIRECTOR', 'ORIGIN PRICE', 'AVG BOOK PRICE', 'COUNT BOOK', 'AVG RATING'))
-        for title, director, origin_price, avg_price, book_count, avg_rating in result:
+        print('+' + '-' * 5 + '+' + '-' * 70 + '+' + '-' * 35 + '+' + '-' * 15 + '+' + '-' * 15 + '+' + '-' * 15 + '+' + '-' * 15 + '+')
+        print(str.format('|{:^5}|{:^70}|{:^35}|{:^15}|{:^15}|{:^15}|{:^15}|', \
+            'ID', 'TITLE', 'DIRECTOR', 'ORIGIN PRICE', 'AVG BOOK PRICE', 'COUNT BOOK', 'AVG RATING'))
+        print('+' + '-' * 5 + '+' + '-' * 70 + '+' + '-' * 35 + '+' + '-' * 15 + '+' + '-' * 15 + '+' + '-' * 15 + '+' + '-' * 15 + '+')
+        for id, title, director, origin_price, avg_price, book_count, avg_rating in result:
             if avg_rating == None:
                 avg_rating = "None"
-            print(f'{title:<70}{director:<35}{origin_price:<15}{int(avg_price):<15}{book_count:<15}{avg_rating:<15}')
-        print('-' * 140)
+            if avg_price == None:
+                avg_price = "None"
+            else:
+                avg_price = int(avg_price)
+            
+            print(f'|{id:<5}|{title:<70}|{director:<35}|{origin_price:<15}|{avg_price:<15}|{book_count:<15}|{avg_rating:<15}|')
+        print('+' + '-' * 5 + '+' + '-' * 70 + '+' + '-' * 35 + '+' + '-' * 15 + '+' + '-' * 15 + '+' + '-' * 15 + '+' + '-' * 15 + '+')
 
 # Problem 3 (3 pt.)
 def print_users():
     with my_db.connection.cursor() as cursor:
         cursor.execute('SELECT * FROM Person ORDER BY ID ASC')
         result = cursor.fetchall()
-        print('-' * 140)
-        print(str.format('{:^40}{:^20}{:^20}', 'name', 'age', 'class'))
-        for _, name, age, customer_class in result:
-            print(f'{name:<40}{age:<20}{customer_class:<20}')
-        print('-' * 140)
+        print('+' + '-' * 5 + '+' + '-' * 40 + '+' + '-' * 20 + '+' + '-' * 20 + '+')
+        print(str.format('|{:^5}|{:^40}|{:^20}|{:^20}|', 'id', 'name', 'age', 'class'))
+        print('+' + '-' * 5 + '+' + '-' * 40 + '+' + '-' * 20 + '+' + '-' * 20 + '+')
+        for id, name, age, customer_class in result:
+            print(f'|{id:<5}|{name:<40}|{age:<20}|{customer_class:<20}|')
+        print('+' + '-' * 5 + '+' + '-' * 40 + '+' + '-' * 20 + '+' + '-' * 20 + '+')
 
     pass
 
@@ -58,21 +66,22 @@ def insert_movie():
     
     with my_db.connection.cursor() as cursor:
         # Check if movie already exists
-        cursor.execute('SELECT COUNT(ID) FROM Movie WHERE title = %s', title)
-        result = cursor.fetchone()
-        if result[0] != 0:
-            # error message
+        if my_db.movie_exists_title(title):
             print(f'Movie {title} already exists')
             return
-        else:
-            # Get price
-            price = input('Movie price: ')
-            # Check if price is valid
-            if int(price) >= 0 and int(price) <= 100000:
-                cursor.execute('INSERT INTO Movie (title, director, price) VALUES (%s, %s, %s)', (title, director, price))
-                my_db.connection.commit()
-            else:
-                print('Movie price should be from 0 to 100000')
+        
+        # Get price
+        price = input('Movie price: ')
+        # Check if price is valid
+        try:
+            cursor.execute('INSERT INTO Movie (title, director, price) VALUES (%s, %s, %s)', (title, director, price))
+            my_db.connection.commit()
+        except pymysql.err.DataError:
+            print('Movie price should be from 0 to 100000')
+            return
+        except pymysql.err.OperationalError:
+            print('Movie price should be from 0 to 100000')
+            return
 
     # success message
     print('One movie successfully inserted')
@@ -84,15 +93,12 @@ def remove_movie():
     
     with my_db.connection.cursor() as cursor:
         # Check if movie exists
-        cursor.execute('SELECT COUNT(ID) FROM Movie WHERE ID = %s', movie_id)
-        result = cursor.fetchone()
-        if result[0] == 0:
-            # error message
+        if not my_db.movie_exists_id(movie_id):
             print(f'Movie {movie_id} does not exist')
             return
-        else:
-            cursor.execute('DELETE FROM Movie WHERE ID = %s', movie_id)
-            my_db.connection.commit()
+        
+        cursor.execute('DELETE FROM Movie WHERE ID = %s', movie_id)
+        my_db.connection.commit()
 
     # success message
     print('One movie successfully removed')
@@ -104,24 +110,28 @@ def insert_user():
     name = input('User name: ')
     age = input('User age: ')
     
-    if age < 12 or age > 110:
-         print('User age should be from 12 to 110')
-    
     with my_db.connection.cursor() as cursor:
-        cursor.execute('SELECT COUNT(ID) FROM Person WHERE name = %s', name)
-        result = cursor.fetchone()
-        if result[0] != 0:
+        if my_db.user_exists_name(name, age):
             # error message
             print(f'The user ({name}, {age}) already exists')
             return
-        else:
-            customer_class = input('User class: ')
-            if customer_class == 'basic' or customer_class == 'premium' or customer_class == 'vip':
-                cursor.execute('INSERT INTO Person (name, age, customer_class) VALUES (%s, %s, %s)', (name, age, customer_class))
-                my_db.connection.commit()
-            else:
-                print('User class should be basic, premium or vip')
+        
+        customer_class = input('User class: ')
+        if customer_class == 'basic' or customer_class == 'premium' or customer_class == 'vip':
+            try:
+                cursor.execute('INSERT INTO Person (name, age, class) VALUES (%s, %s, %s)', (name, age, customer_class))
+            # Check if age is valid
+            except pymysql.err.DataError:
+                print('User age should be an integer')
                 return
+            except pymysql.err.OperationalError:
+                print('User age should be from 12 to 110')
+                return
+            
+            my_db.connection.commit()
+        else:
+            print('User class should be basic, premium or vip')
+            return
     
     # success message
     print('One user successfully inserted')
@@ -134,76 +144,118 @@ def remove_user():
     user_id = input('User ID: ')
 
     with my_db.connection.cursor() as cursor:
-        cursor.execute('SELECT COUNT(ID) FROM Person WHERE ID = %s', user_id)
-        result = cursor.fetchone()
-        
-        if result[0] == 0:
+        if not my_db.user_exists_id(user_id):
             # error message
             print(f'User {user_id} does not exist')
             return
-        else:
-            cursor.execute('DELETE FROM Person WHERE ID = %s', user_id)
-            my_db.connection.commit()
+        
+        cursor.execute('DELETE FROM Person WHERE ID = %s', user_id)
+        my_db.connection.commit()
 
     # success message
     print('One user successfully removed')
-    # YOUR CODE GOES HERE
     pass
 
 # Problem 8 (5 pt.)
 def book_movie():
-    # YOUR CODE GOES HERE
+    # Get movie ID and user ID
     movie_id = input('Movie ID: ')
     user_id = input('User ID: ')
-
+    
     with my_db.connection.cursor() as cursor:
-        # Check movie exists
-        cursor.execute("SELECT COUNT(ID) FROM Movie WHERE ID = %s", movie_id)
+        price = 0
+        customer_class = ""
+        
+        # Check validation of input, movie existence and get price
+        # To get price, doesn't use my_db.movie_exists_id() because it returns boolean
+        try:
+            cursor.execute("SELECT price FROM Movie WHERE ID = %s", movie_id)
+        except pymysql.err.DataError:
+            print('Movie ID should be an integer')
+            return
+        
         result = cursor.fetchone()
-        if result[0] == 0:
+        if result == None:
             # error message
             print(f'Movie {movie_id} does not exist')
             return
+        else:
+            price = result[0]
 
-        # Check user exists
-        cursor.execute("SELECT COUNT(ID) FORM Person WHERE ID = %s", user_id)
-        result = cursor.fetchone()
-        if result[0] == 0:
-            print(f'User {user_id} does not exist')
+        # Check validation of input, user existence and get class
+        # To get class, doesn't use my_db.user_exists_id() because it returns boolean
+        try:
+            cursor.execute("SELECT class FROM Person WHERE ID = %s", user_id)
+        except pymysql.err.DataError:
+            print('User ID should be an integer')
             return
         
-        # Check same booking already exist
-        cursor.execute("SELECT COUNT(*) FROM Booking WHERE mov_id = %s AND usr_id = %s", (movie_id, user_id))
         result = cursor.fetchone()
-        if result[0] != 0:
+        if result == None:
+            print(f'User {user_id} does not exist')
+            return
+        else:
+            customer_class = result[0]
+        
+        # Check same booking already exist
+        if my_db.book_exists(movie_id, user_id):
             print(f'User {user_id} already booked movie {movie_id}')
             return
         
-        cursor.execute("SELECT COUNT(*) FROM Booking WHERE mov_id = %s", movie_id)
+        # check movie is fully booked
+        cursor.execute("SELECT COUNT(*) FROM Book WHERE mov_id = %s", movie_id)
         result = cursor.fetchone()
         if result[0] >= 10:
             print(f'Movie {movie_id} has already been fully booked')
             return
+        
+        # calculate price based on customer class
+        if customer_class == 'premium':
+            price = int(price * 0.75)
+        elif customer_class == 'vip':
+            price = int(price * 0.5)
+        
+        cursor.execute("INSERT INTO Book (mov_id, person_id, reserve_price) VALUES (%s, %s, %s)", (movie_id, user_id, price))
+        my_db.connection.commit()
 
     # success message
     print('Movie successfully booked')
-    # YOUR CODE GOES HERE
-    pass
 
 # Problem 9 (5 pt.)
 def rate_movie():
-    # YOUR CODE GOES HERE
+    # Handle invalid inputs
     movie_id = input('Movie ID: ')
     user_id = input('User ID: ')
     rating = input('Ratings (1~5): ')
 
-
-    # error message
-    print(f'Movie {movie_id} does not exist')
-    print(f'User {user_id} does not exist')
-    print(f'Wrong value for a rating')
-    print(f'User {user_id} has not booked movie {movie_id} yet')
-    print(f'User {user_id} has already rated movie {movie_id}')
+    with my_db.connection.cursor() as cursor:
+        if my_db.movie_exists_id(movie_id):
+            print(f'Movie {movie_id} does not exist')
+            return
+        
+        if my_db.user_exists_id(user_id):
+            print(f'User {user_id} does not exist')
+            return
+        
+        try:
+            cursor.execute('SELECT rating FROM Book WHERE mov_id = %s AND person_id = %s', (movie_id, user_id))
+            result = cursor.fetchone()
+            if result == None:
+                try:
+                    cursor.execute('UPDATE Book SET rating = %s WHERE mov_id = %s AND person_id = %s', (rating, movie_id, user_id))
+                    my_db.connection.commit()
+                except pymysql.err.DataError:
+                    print('Rating should be an integer')
+                    return
+                except pymysql.err.OperationalError:
+                    print('Rating should be from 1 to 5')
+                    return
+            else:
+                print(f'User {user_id} has already rated movie {movie_id}')
+                return
+        except pymysql.err.OperationalError:
+            print(f'User {user_id} has not booked movie {movie_id} yet')
+            return
 
     # success message
     print('Movie successfully rated')
@@ -213,31 +265,74 @@ def rate_movie():
 # Problem 10 (5 pt.)
 def print_users_for_movie():
     # YOUR CODE GOES HERE
-    user_id = input('User ID: ')
+    movie_id = input('Movie ID: ')
 
-    
-    # error message
-    print(f'User {user_id} does not exist')
-    # YOUR CODE GOES HERE
-    pass
+    with my_db.connection.cursor() as cursor:
+        if not my_db.movie_exists_id(movie_id):
+            # error message
+            print(f'Movie {movie_id} does not exist')
+            return
+        
+        try:
+            cursor.execute('''
+            SELECT DISTNCT Person.ID, Person.name, Person.age, Book.reserve_price, Book.rating
+            FROM Person NATURAL JOIN Book ON Person.ID = Book.person_id
+            WHERE Book.mov_id = %s
+            ORDER BY Person.ID ASC
+            ''', movie_id)
+            result = cursor.fetchall()
+            print('+' + '-' * 5 + '+' + '-' * 40 + '+' + '-' * 15 + '+' + '-' * 15 + '+' + '-' * 15 + '+')
+            print(str.format('|{:^5}|{:^40}|{:^15}|{:^15}|{:^15}', 'ID', 'NAME', 'AGE', 'BOOK PRICE', 'RATING'))
+            print('+' + '-' * 5 + '+' + '-' * 40 + '+' + '-' * 15 + '+' + '-' * 15 + '+' + '-' * 15 + '+')
+            for id, name, age, price, rating in result:
+                if rating == None:
+                    rating = 'None'
+                print(f'|{id:^5}|{name:^40}|{age:^15}|{price:^15}|{rating:^15}')
+            print('+' + '-' * 5 + '+' + '-' * 40 + '+' + '-' * 15 + '+' + '-' * 15 + '+' + '-' * 15 + '+')
+        except pymysql.err.DataError:
+            print('Movie ID should be an integer')
+            return
 
 
 # Problem 11 (5 pt.)
 def print_movies_for_user():
-    # YOUR CODE GOES HERE
     user_id = input('User ID: ')
 
-
-    # error message
-    print(f'User {user_id} does not exist')
-    # YOUR CODE GOES HERE
-    pass
-
+    with my_db.connection.cursor() as cursor:
+        if my_db.user_exists_id(user_id):
+            print(f'User {user_id} does not exist')
+            return
+        
+        try:
+            cursor.execute('''
+                SELECT DISTINCT Movie.ID, Movie.title, Movie.director, Book.reserve_price, Book.rating
+                FROM Movie NATURAL JOIN Book ON Movie.ID = Book.mov_id
+                WHERE Book.person_id = %s
+                ORDER BY Movie.ID ASC
+            ''', user_id)
+            result = cursor.fetchall()
+            print('+' + '-' * 5 + '+' + '-' * 70 + '+' + '-' * 35 + '+' + '-' * 15 + '+' + '-' * 15 + '+')
+            print(str.format('|{:^5}|{:^70}|{:^35}|{:^15}|{:^15}', 'ID', 'TITLE', 'DIRECTOR', 'BOOK PRICE', 'RATING'))
+            print('+' + '-' * 5 + '+' + '-' * 70 + '+' + '-' * 35 + '+' + '-' * 15 + '+' + '-' * 15 + '+')
+            for id, title, director, price, rating in result:
+                if rating == None:
+                    rating = 'None'
+                print(f'|{id:^5}|{title:^70}|{director:^35}|{price:^15}|{rating:^15}')
+            print('+' + '-' * 5 + '+' + '-' * 70 + '+' + '-' * 35 + '+' + '-' * 15 + '+' + '-' * 15 + '+')
+        except pymysql.err.DataError:
+            print('User ID should be an integer')
+            return
+        
+        
 # Problem 12 (6 pt.)
 def recommend_popularity():
     # YOUR CODE GOES HERE
     user_id = input('User ID: ')
-
+    
+    with my_db.connection.cursor() as cursor:
+        if my_db.user_exists_id(user_id):
+            print(f'User {user_id} does not exist')
+            return
 
     # error message
     print(f'User {user_id} does not exist')

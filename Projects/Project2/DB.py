@@ -76,8 +76,8 @@ class Database:
                     reserve_price INT NOT NULL,
                     rating INT,
                     PRIMARY KEY (mov_id, person_id),
-                    FOREIGN KEY (mov_id) REFERENCES Movie(ID),
-                    FOREIGN KEY (person_id) REFERENCES Person(ID),
+                    FOREIGN KEY (mov_id) REFERENCES Movie(ID) ON DELETE CASCADE,
+                    FOREIGN KEY (person_id) REFERENCES Person(ID) ON DELETE CASCADE,
                     CHECK (reserve_price >= 0 AND reserve_price <= 100000),
                     CHECK (rating >= 1 AND rating <= 5)
                 )""")
@@ -88,7 +88,6 @@ class Database:
         self.loading_csv()
             
         self.make_connection()
-
     
     def loading_csv(self) -> None:
         pd.set_option('mode.chained_assignment',  None)
@@ -125,4 +124,63 @@ class Database:
         
         db_connection.close()
             
-        
+    def movie_exists_title(self, title) -> bool:
+        with self.connection.cursor() as cursor:
+            cursor.execute('SELECT COUNT(ID) FROM Movie WHERE title = %s', title)
+            result = cursor.fetchone()
+            if result[0] == 0:
+                return False
+            else:
+                return True
+                
+    def movie_exists_id(self, ID) -> bool:
+        with self.connection.cursor() as cursor:
+            try:
+                cursor.execute('SELECT COUNT(ID) FROM Movie WHERE ID = %s', ID)
+                result = cursor.fetchone()
+                if result is None:
+                    return False
+                else:
+                    return True
+            except pymysql.err.DataError:
+                print('Movie ID should be an integer')
+                return False
+    
+    def user_exists_name(self, name, age) -> bool:
+        with self.connection.cursor() as cursor:
+            try:
+                cursor.execute('SELECT COUNT(ID) FROM Person WHERE name = %s AND age = %s', (name, age))
+                result = cursor.fetchone()
+                if result[0] == 0:
+                    return False
+                else:
+                    return True
+            except pymysql.err.DataError:
+                print('User age should be an integer')
+                return False
+            
+    def user_exists_id(self, ID) -> bool:
+        with self.connection.cursor() as cursor:
+            try:
+                cursor.execute('SELECT COUNT(ID) FROM Person WHERE ID = %s', ID)
+                result = cursor.fetchone()
+                if result is None:
+                    return False
+                else:
+                    return True
+            except pymysql.err.DataError:
+                print('User ID should be an integer')
+                return False
+            
+    def book_exists(self, mov_id, person_id) -> bool:
+        with self.connection.cursor() as cursor:
+            try:
+                cursor.execute('SELECT COUNT(*) FROM Book WHERE mov_id = %s AND person_id = %s', (mov_id, person_id))
+                result = cursor.fetchone()
+                if result[0] == 0:
+                    return False
+                else:
+                    return True
+            except pymysql.err.DataError:
+                print('Movie ID and User ID should be an integer')
+                return False
