@@ -10,6 +10,10 @@
   - So, for tuple `t1` and `t2` in `R` 
   - if `t1[a] = t2[a]` then `t1[b] = t2[b]`
 
+#### Trivial FD
+- `X -> Y` is trivial if `Y` is subset of `X`
+- `X -> X` is trivial FD
+
 #### Application of FD
 - Definition of keys
   - `K` is a key of `R` if `K -> R`
@@ -78,3 +82,7 @@
   - $R1 \cap R2 \rightarrow R1$ or $R1 \cap R2 \rightarrow R2$
   
 #### Dependency Preservation
+- For relation `R` and it's decomposition `(R1, ..., Ri ..., Rn)`
+  - $F_i$ is restriction of `F` to `Ri`
+  - then $F^{'} = F_1 \cup .. \cup F_n$
+  - the decomposition is dependency preserving if $F^{'}+ = F+$

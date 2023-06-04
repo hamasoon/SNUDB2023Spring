@@ -75,6 +75,6 @@
 
 - Cascading Rollback : roll back all effected transaction
 
-- Cascadekess Schedules : prevent cascading rollback
+- Cascadeless Schedules : prevent cascading rollback
     - to avoid it, must **read after commit**!
     - by prevent cascading rollback, every cascadeless schedule is **recoverable**
