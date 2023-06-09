@@ -21,6 +21,7 @@ class Database:
 
     def __init__(self) -> None:
         self.connection = None
+        self.make_connection()
         
     
     def __del__(self) -> None:
@@ -82,49 +83,61 @@ class Database:
                     CHECK (rating >= 1 AND rating <= 5)
                 )""")
         
-        self.connection.close()
+        #self.connection.close()
         
         # Insert data from csv file
         self.loading_csv()
             
-        self.make_connection()
+        #self.make_connection()
     
+    # What we have to check?
+    # price -> [0:100000] + INTEGER
+    # age -> [12:110] + INTEGER
+    # name + age -> PK
     def loading_csv(self) -> None:
         pd.set_option('mode.chained_assignment',  None)
         raw_data = pd.read_csv('data.csv')
 
-        self.movie_table = raw_data[['title', 'director', 'price']].drop_duplicates().reset_index(drop=True)
-        self.person_table = raw_data[['name', 'age', 'class']].drop_duplicates().reset_index(drop=True)
-        self.book_table = raw_data[['title', 'name']].drop_duplicates().reset_index(drop=True)
+        movie_table = raw_data[['title', 'director', 'price']].drop_duplicates(subset='title').reset_index(drop=True)
+        person_table = raw_data[['name', 'age', 'class']].drop_duplicates(subset=['name', 'age']).reset_index(drop=True)
+        book_table = raw_data[['title', 'name']].drop_duplicates().reset_index(drop=True)
 
-        self.book_table['title'] = self.book_table['title'].map(lambda x: self.movie_table[self.movie_table['title'] == x].index[0] + 1)
-        self.book_table['name'] = self.person_table['name'].map(lambda x: self.person_table[self.person_table['name'] == x].index[0] + 1)
-        self.book_table[['reserve_price', 'rating']] = None
+        # code to use sqlalchemy
+        # for idx, elem in self.book_table[['title', 'name']].iterrows():
+        #     price = self.movie_table['price'][elem['title']-1]
+        #     customer_class = self.person_table['class'][elem['name']-1].lower()
 
-        for idx, elem in self.book_table[['title', 'name']].iterrows():
-            price = self.movie_table['price'][elem['title']-1]
-            customer_class = self.person_table['class'][elem['name']-1].lower()
-
-            if customer_class == 'vip':
-                price = int(price/2)
-            elif customer_class == 'premium':
-                price = int(price*3/4)
+        #     if customer_class == 'vip':
+        #         price = int(price/2)
+        #     elif customer_class == 'premium':
+        #         price = int(price*3/4)
                 
-            self.book_table['reserve_price'][idx] = price
+        #     self.book_table['reserve_price'][idx] = price
             
-        self.book_table.rename(columns = {"title": "mov_id", "name": "person_id"}, inplace = True)
+        # self.book_table.rename(columns = {"title": "mov_id", "name": "person_id"}, inplace = True)
         
-        # 
-        engine = create_engine("mysql+pymysql://DB2019_14355:DB2019_14355@astronaut.snu.ac.kr:7000/DB2019_14355", encoding='utf-8')
-        db_connection = engine.connect()
+        with self.connection.cursor() as cursor:
+            for row in movie_table.values:
+                title, director, price = row
+                self.insert_movie(title, director, price, True)
+            for row in person_table.values:
+                name, age, customer_class = row
+                self.insert_user(name, age, customer_class, True)
+            for row in book_table.values:
+                title, name = row
+                self.insert_book_with_name(title, name, True)
         
-        self.movie_table.to_sql(name='Movie', con=db_connection, if_exists='append', index=False)  
-        self.person_table.to_sql(name='Person', con=db_connection, if_exists='append', index=False)  
-        self.book_table.to_sql(name='Book', con=db_connection, if_exists='append', index=False)
+        # code to use sqlalchemy
+        # engine = create_engine("mysql+pymysql://DB2019_14355:DB2019_14355@astronaut.snu.ac.kr:7000/DB2019_14355", encoding='utf-8')
+        # db_connection = engine.connect()
         
-        db_connection.close()
+        # self.movie_table.to_sql(name='Movie', con=db_connection, if_exists='append', index=False)  
+        # self.person_table.to_sql(name='Person', con=db_connection, if_exists='append', index=False)  
+        # self.book_table.to_sql(name='Book', con=db_connection, if_exists='append', index=False)
+        
+        # db_connection.close()
             
-    def movie_exists_title(self, title) -> bool:
+    def movie_exists_title(self, title, is_first = False) -> bool:
         with self.connection.cursor() as cursor:
             cursor.execute('SELECT COUNT(ID) FROM Movie WHERE title = %s', title)
             result = cursor.fetchone()
@@ -146,7 +159,7 @@ class Database:
                 print('Movie ID should be an integer')
                 return False
     
-    def user_exists_name(self, name, age) -> bool:
+    def user_exists_name(self, name, age, is_first = False) -> bool:
         with self.connection.cursor() as cursor:
             try:
                 cursor.execute('SELECT COUNT(ID) FROM Person WHERE name = %s AND age = %s', (name, age))
@@ -156,7 +169,8 @@ class Database:
                 else:
                     return True
             except pymysql.err.DataError:
-                print('User age should be an integer')
+                if not is_first:
+                    print('User age should be an integer')
                 return False
             
     def user_exists_id(self, ID) -> bool:
@@ -164,7 +178,7 @@ class Database:
             try:
                 cursor.execute('SELECT COUNT(ID) FROM Person WHERE ID = %s', ID)
                 result = cursor.fetchone()
-                if result is None:
+                if result is None or result[0] == 0:
                     return False
                 else:
                     return True
@@ -172,7 +186,7 @@ class Database:
                 print('User ID should be an integer')
                 return False
             
-    def book_exists(self, mov_id, person_id) -> bool:
+    def book_exists(self, mov_id, person_id, is_first = False) -> bool:
         with self.connection.cursor() as cursor:
             try:
                 cursor.execute('SELECT COUNT(*) FROM Book WHERE mov_id = %s AND person_id = %s', (mov_id, person_id))
@@ -182,5 +196,171 @@ class Database:
                 else:
                     return True
             except pymysql.err.DataError:
-                print('Movie ID and User ID should be an integer')
+                if not is_first:
+                    print('Movie ID and User ID should be an integer')
                 return False
+            
+    def insert_movie(self, title, director, price, is_first = False) -> None:
+        with self.connection.cursor() as cursor:
+            # Check if movie already exists
+            if self.movie_exists_title(title, is_first):
+                if not is_first:
+                    print(f'Movie {title} already exists')
+                return
+            
+            try:
+                cursor.execute('INSERT INTO Movie (title, director, price) VALUES (%s, %s, %s)', (title, director, price))
+                self.connection.commit()
+            except pymysql.err.DataError:
+                if not is_first:
+                    print('Movie price should be from 0 to 100000')
+                return
+            except pymysql.err.OperationalError:
+                if not is_first:
+                    print('Movie price should be from 0 to 100000')
+                return
+
+        # success message
+        if not is_first:
+            print('One movie successfully inserted')
+        
+    def insert_user(self, name, age, user_class, is_first = False) -> None:
+        with self.connection.cursor() as cursor:
+            # Check if user already exists
+            if self.user_exists_name(name, age, is_first):
+                if not is_first:
+                    print(f'User {name} already exists')
+                return
+            
+            if user_class == 'basic' or user_class == 'premium' or user_class == 'vip':
+                try:
+                    cursor.execute('INSERT INTO Person (name, age, class) VALUES (%s, %s, %s)', (name, age, user_class))
+                    self.connection.commit()
+                except pymysql.err.DataError:
+                    if not is_first:
+                        print('User age should be from 12 to 110')
+                    return
+                except pymysql.err.OperationalError:
+                    if not is_first:
+                        print('User age should be from 12 to 110')
+                    return
+            else:
+                if not is_first:
+                    print('User class should be basic, premium or vip')
+
+        # success message
+        if not is_first:
+            print('One user successfully inserted')
+            
+    def insert_book_with_name(self, title, name, is_first = False) -> None:
+        with self.connection.cursor() as cursor:
+            mov_id = 0
+            user_id = 0
+            price = 0
+            customer_class = ""
+            
+            try:
+                cursor.execute("SELECT ID, price FROM Movie WHERE title = %s", title)
+                
+                result = cursor.fetchone()
+                if result[0] == None:
+                    # error message
+                    if not is_first:
+                        print(f'Movie {title} does not exist')
+                    return
+                else :
+                    mov_id, price = result[0], result[1]
+            except pymysql.err:
+                if not is_first:
+                    print(f'Movie {title} does not exist')
+                return
+            
+            try:
+                cursor.execute("SELECT ID, class FROM Person WHERE name = %s", name)
+                
+                result = cursor.fetchone()
+                if result[0] == None:
+                    # error message
+                    if not is_first:
+                        print(f'User {name} does not exist')
+                    return
+                else:
+                    user_id, customer_class = result[0], result[1]
+            except pymysql.err:
+                if not is_first:
+                    print(f'User {name} does not exist')
+                return
+            
+            self.insert_book(mov_id, user_id, price, customer_class, is_first)
+            
+            
+    def insert_book_with_id(self, mov_id, user_id, is_first = False) -> None:
+        with self.connection.cursor() as cursor:
+            price = 0
+            customer_class = ""
+            
+            # Check validation of input, movie existence and get price
+            # To get price, doesn't use my_db.movie_exists_id() because it returns boolean
+            try:
+                cursor.execute("SELECT price FROM Movie WHERE ID = %s", mov_id)
+            except pymysql.err.DataError:
+                if not is_first:
+                    print('Movie ID should be an integer')
+                return
+            
+            result = cursor.fetchone()
+            if result == None:
+                # error message
+                if not is_first:
+                    print(f'Movie {mov_id} does not exist')
+                return
+            else:
+                price = result[0]
+
+            # Check validation of input, user existence and get class
+            # To get class, doesn't use my_db.user_exists_id() because it returns boolean
+            try:
+                cursor.execute("SELECT class FROM Person WHERE ID = %s", user_id)
+            except pymysql.err.DataError:
+                if not is_first:
+                    print('User ID should be an integer')
+                return
+            
+            result = cursor.fetchone()
+            if result == None:
+                if not is_first:
+                    print(f'User {user_id} does not exist')
+                return
+            else:
+                customer_class = result[0]
+            
+            self.insert_book(mov_id, user_id, price, customer_class, is_first)
+            
+    def insert_book(self, mov_id, user_id, price, customer_class, is_first = False) -> None:
+        with self.connection.cursor() as cursor:
+            # Check same booking already exist
+            if self.book_exists(mov_id, user_id):
+                if not is_first:
+                    print(f'User {user_id} already booked movie {mov_id}')
+                return
+            
+            # check movie is fully booked
+            cursor.execute("SELECT COUNT(*) FROM Book WHERE mov_id = %s", mov_id)
+            result = cursor.fetchone()
+            if result[0] >= 10:
+                if not is_first:
+                    print(f'Movie {mov_id} has already been fully booked')
+                return
+            
+            # calculate price based on customer class
+            if customer_class == 'premium':
+                price = int(price * 0.75)
+            elif customer_class == 'vip':
+                price = int(price * 0.5)
+            
+            cursor.execute("INSERT INTO Book (mov_id, person_id, reserve_price) VALUES (%s, %s, %s)", (mov_id, user_id, price))
+            self.connection.commit()
+
+        # success message
+        if not is_first:
+            print('Movie successfully booked')

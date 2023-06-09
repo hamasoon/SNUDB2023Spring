@@ -1,0 +1,17 @@
+title,director,price,name,age,class
+mov1,d1,10000,p1,20,basic
+mov1,d1,10000,p2,20,basic
+mov1,d1,10000,p3,20,basic
+mov1,d1,10000,p4,20,basic
+mov2,d2,10000,p1,20,basic
+mov2,d2,10000,p2,20,basic
+mov2,d2,10000,p3,20,basic
+mov2,d2,10000,p4,20,basic
+mov3,d3,10000,p1,20,basic
+mov3,d3,10000,p2,20,basic
+mov3,d3,10000,p3,20,basic
+mov3,d3,10000,p4,20,basic
+mov4,d4,10000,p1,20,basic
+mov4,d4,10000,p2,20,basic
+mov4,d4,10000,p3,20,basic
+mov4,d4,10000,p4,20,basic

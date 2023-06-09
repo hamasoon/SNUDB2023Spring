@@ -1,4 +1,5 @@
 import pymysql
+import numpy as np
 from DB import Database
 
 my_db = Database.instance()
@@ -63,28 +64,9 @@ def insert_movie():
     # YOUR CODE GOES HERE
     title = input('Movie title: ')
     director = input('Movie director: ')
+    price = input('Movie price: ')
     
-    with my_db.connection.cursor() as cursor:
-        # Check if movie already exists
-        if my_db.movie_exists_title(title):
-            print(f'Movie {title} already exists')
-            return
-        
-        # Get price
-        price = input('Movie price: ')
-        # Check if price is valid
-        try:
-            cursor.execute('INSERT INTO Movie (title, director, price) VALUES (%s, %s, %s)', (title, director, price))
-            my_db.connection.commit()
-        except pymysql.err.DataError:
-            print('Movie price should be from 0 to 100000')
-            return
-        except pymysql.err.OperationalError:
-            print('Movie price should be from 0 to 100000')
-            return
-
-    # success message
-    print('One movie successfully inserted')
+    my_db.insert_movie(title, director, price)
     
 
 # Problem 6 (4 pt.)
@@ -109,34 +91,12 @@ def insert_user():
     # YOUR CODE GOES HERE
     name = input('User name: ')
     age = input('User age: ')
-    
-    with my_db.connection.cursor() as cursor:
-        if my_db.user_exists_name(name, age):
-            # error message
-            print(f'The user ({name}, {age}) already exists')
-            return
-        
-        customer_class = input('User class: ')
-        if customer_class == 'basic' or customer_class == 'premium' or customer_class == 'vip':
-            try:
-                cursor.execute('INSERT INTO Person (name, age, class) VALUES (%s, %s, %s)', (name, age, customer_class))
-            # Check if age is valid
-            except pymysql.err.DataError:
-                print('User age should be an integer')
-                return
-            except pymysql.err.OperationalError:
-                print('User age should be from 12 to 110')
-                return
-            
-            my_db.connection.commit()
-        else:
-            print('User class should be basic, premium or vip')
-            return
-    
-    # success message
-    print('One user successfully inserted')
-    # YOUR CODE GOES HERE
-    pass
+    customer_class = input('User class: ')
+    if customer_class == 'basic' or customer_class == 'premium' or customer_class == 'vip':
+        my_db.insert_user(name, age, customer_class)
+    else:
+        print('User class should be basic, premium or vip')
+        return
 
 # Problem 7 (4 pt.)
 def remove_user():
@@ -162,64 +122,7 @@ def book_movie():
     movie_id = input('Movie ID: ')
     user_id = input('User ID: ')
     
-    with my_db.connection.cursor() as cursor:
-        price = 0
-        customer_class = ""
-        
-        # Check validation of input, movie existence and get price
-        # To get price, doesn't use my_db.movie_exists_id() because it returns boolean
-        try:
-            cursor.execute("SELECT price FROM Movie WHERE ID = %s", movie_id)
-        except pymysql.err.DataError:
-            print('Movie ID should be an integer')
-            return
-        
-        result = cursor.fetchone()
-        if result == None:
-            # error message
-            print(f'Movie {movie_id} does not exist')
-            return
-        else:
-            price = result[0]
-
-        # Check validation of input, user existence and get class
-        # To get class, doesn't use my_db.user_exists_id() because it returns boolean
-        try:
-            cursor.execute("SELECT class FROM Person WHERE ID = %s", user_id)
-        except pymysql.err.DataError:
-            print('User ID should be an integer')
-            return
-        
-        result = cursor.fetchone()
-        if result == None:
-            print(f'User {user_id} does not exist')
-            return
-        else:
-            customer_class = result[0]
-        
-        # Check same booking already exist
-        if my_db.book_exists(movie_id, user_id):
-            print(f'User {user_id} already booked movie {movie_id}')
-            return
-        
-        # check movie is fully booked
-        cursor.execute("SELECT COUNT(*) FROM Book WHERE mov_id = %s", movie_id)
-        result = cursor.fetchone()
-        if result[0] >= 10:
-            print(f'Movie {movie_id} has already been fully booked')
-            return
-        
-        # calculate price based on customer class
-        if customer_class == 'premium':
-            price = int(price * 0.75)
-        elif customer_class == 'vip':
-            price = int(price * 0.5)
-        
-        cursor.execute("INSERT INTO Book (mov_id, person_id, reserve_price) VALUES (%s, %s, %s)", (movie_id, user_id, price))
-        my_db.connection.commit()
-
-    # success message
-    print('Movie successfully booked')
+    my_db.insert_book_with_id(movie_id, user_id)
 
 # Problem 9 (5 pt.)
 def rate_movie():
@@ -229,11 +132,11 @@ def rate_movie():
     rating = input('Ratings (1~5): ')
 
     with my_db.connection.cursor() as cursor:
-        if my_db.movie_exists_id(movie_id):
+        if not my_db.movie_exists_id(movie_id):
             print(f'Movie {movie_id} does not exist')
             return
         
-        if my_db.user_exists_id(user_id):
+        if not my_db.user_exists_id(user_id):
             print(f'User {user_id} does not exist')
             return
         
@@ -241,6 +144,9 @@ def rate_movie():
             cursor.execute('SELECT rating FROM Book WHERE mov_id = %s AND person_id = %s', (movie_id, user_id))
             result = cursor.fetchone()
             if result == None:
+                print(f'User {user_id} has not booked movie {movie_id} yet')
+                return
+            elif result[0] is None:
                 try:
                     cursor.execute('UPDATE Book SET rating = %s WHERE mov_id = %s AND person_id = %s', (rating, movie_id, user_id))
                     my_db.connection.commit()
@@ -275,8 +181,9 @@ def print_users_for_movie():
         
         try:
             cursor.execute('''
-            SELECT DISTNCT Person.ID, Person.name, Person.age, Book.reserve_price, Book.rating
-            FROM Person NATURAL JOIN Book ON Person.ID = Book.person_id
+            SELECT DISTINCT Person.ID, Person.name, Person.age, Book.reserve_price, Book.rating
+            FROM Person
+            INNER JOIN Book ON Person.ID = Book.person_id
             WHERE Book.mov_id = %s
             ORDER BY Person.ID ASC
             ''', movie_id)
@@ -299,14 +206,14 @@ def print_movies_for_user():
     user_id = input('User ID: ')
 
     with my_db.connection.cursor() as cursor:
-        if my_db.user_exists_id(user_id):
+        if not my_db.user_exists_id(user_id):
             print(f'User {user_id} does not exist')
             return
         
         try:
             cursor.execute('''
                 SELECT DISTINCT Movie.ID, Movie.title, Movie.director, Book.reserve_price, Book.rating
-                FROM Movie NATURAL JOIN Book ON Movie.ID = Book.mov_id
+                FROM Movie INNER JOIN Book ON Movie.ID = Book.mov_id
                 WHERE Book.person_id = %s
                 ORDER BY Movie.ID ASC
             ''', user_id)
@@ -330,33 +237,163 @@ def recommend_popularity():
     user_id = input('User ID: ')
     
     with my_db.connection.cursor() as cursor:
-        if my_db.user_exists_id(user_id):
+        if not my_db.user_exists_id(user_id):
             print(f'User {user_id} does not exist')
             return
-
-    # error message
-    print(f'User {user_id} does not exist')
-    # YOUR CODE GOES HERE
-    pass
+        
+        cursor.execute('''
+            SELECT Movie.ID, Movie.title, AVG(Book.reserve_price), COUNT(Book.reserve_price), AVG(Book.rating)
+            FROM Movie JOIN Book ON Movie.ID = Book.mov_id
+            WHERE Movie.ID NOT IN (
+                SELECT Movie.ID
+                FROM Movie JOIN Book ON Movie.ID = Book.mov_id
+                WHERE Book.person_id = %s
+            )
+            GROUP BY Movie.ID
+            ORDER BY AVG(Book.rating) DESC, Movie.ID ASC
+            LIMIT 1
+        ''', user_id)
+        
+        result = cursor.fetchone()
+        if result != None:
+            id, title, price, popularity, rating = result
+            if rating == None:
+                rating = 'None'
+            print('-' + '-' * 5 + '-' + '-' * 70 + '-' + '-' * 15 + '-' + '-' * 15 + '-' + '-' * 15 + '-')
+            print("Rating-based")
+            print(str.format('|{:^5}|{:^70}|{:^15}|{:^15}|{:^15}', 'ID', 'TITLE', 'AVG PRICE', 'POPULARITY', 'RATING'))
+            print('+' + '-' * 5 + '+' + '-' * 70 + '+' + '-' * 15 + '+' + '-' * 15 + '+' + '-' * 15 + '+')
+            print(f'|{id:^5}|{title:^70}|{price:^15}|{popularity:^15}|{rating:^15}')
+            print('+' + '-' * 5 + '+' + '-' * 70 + '+' + '-' * 15 + '+' + '-' * 15 + '+' + '-' * 15 + '+')
+        
+        cursor.execute('''
+            SELECT Movie.ID, Movie.title, AVG(Book.reserve_price), COUNT(Book.reserve_price), AVG(Book.rating)
+            FROM Movie JOIN Book ON Movie.ID = Book.mov_id
+            WHERE Movie.ID NOT IN (
+                SELECT Movie.ID
+                FROM Movie JOIN Book ON Movie.ID = Book.mov_id
+                WHERE Book.person_id = %s
+            )
+            GROUP BY Movie.ID
+            ORDER BY COUNT(*) DESC, Movie.ID ASC
+            LIMIT 1
+        ''', user_id)
+        
+        result = cursor.fetchone()
+        if result != None:
+            id, title, price, popularity, rating = result
+            if rating == None:
+                rating = 'None'
+            print("Popularity-based")
+            print(str.format('|{:^5}|{:^70}|{:^15}|{:^15}|{:^15}', 'ID', 'TITLE', 'AVG PRICE', 'POPULARITY', 'RATING'))
+            print('+' + '-' * 5 + '+' + '-' * 70 + '+' + '-' * 15 + '+' + '-' * 15 + '+' + '-' * 15 + '+')
+            print(f'|{id:^5}|{title:^70}|{price:^15}|{popularity:^15}|{rating:^15}')
+            print('+' + '-' * 5 + '+' + '-' * 70 + '+' + '-' * 15 + '+' + '-' * 15 + '+' + '-' * 15 + '+')
 
 
 # Problem 13 (10 pt.)
 def recommend_item_based():
     # YOUR CODE GOES HERE
-    user_id = input('User ID: ')
+    try:
+        user_id = int(input('User ID: '))
+    except ValueError:
+        print('User ID should be an integer')
+    
+    try:
+        rec_count = int(input('Recommend Count: '))
+    except ValueError:
+        print('Recommend Count should be an integer')
+    
+    with my_db.connection.cursor() as cursor:
+        if not my_db.user_exists_id(user_id):
+            print(f'User {user_id} does not exist')
+            return
+        
+        cursor.execute("SELECT COUNT(*) FROM Person")
+        user_count = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM Movie")
+        movie_count = cursor.fetchone()[0]
+        
+        item_table = np.zeros((user_count, movie_count))
+        item_table[:] = np.nan
+
+        cursor.execute('''
+            SELECT *
+            FROM Book
+            ''')
+        
+        result = cursor.fetchall()
+        for mov_id, person_id , _, rating in result:
+            if rating != None and rating > 0.5:
+                item_table[person_id-1][mov_id-1] = rating
+    
+        target_index = np.where(np.isnan(item_table[user_id-1]))
+        item_table = np.nan_to_num(item_table)
+
+        col_mean = np.nanmean(item_table, axis=0)
+        inds = np.where(np.isnan(item_table))
+        item_table[inds] = np.take(col_mean, inds[1])
+        
+        test = np.mean(item_table, axis=0)
+        
+        sim_data = np.round(consine_similiarity_array(np.transpose(np.copy(item_table)), np.mean(item_table), movie_count), 4)
+        
+        result_array = np.ndarray(movie_count)
+        
+        for i in target_index[0]:
+            weight_dot_product = np.dot(sim_data[i], item_table[user_id-1]) - item_table[user_id-1][i]
+            weight_sum = np.sum(sim_data[i]) - 1
+            result_array[i] = weight_dot_product / weight_sum
+        
+        print('-' + '-' * 5 + '-' + '-' * 70 + '-' + '-' * 15 + '-' + '-' * 15 + '-' + '-' * 15 + '-')
+        print("Item-based")
+        print(str.format('|{:^5}|{:^70}|{:^15}|{:^15}|{:^15}', 'ID', 'TITLE', 'AVG PRICE', 'AVG RATING', 'PREDICTED RATING'))
+        print('+' + '-' * 5 + '+' + '-' * 70 + '+' + '-' * 15 + '+' + '-' * 15 + '+' + '-' * 15 + '+')
+        
+        for _ in range(rec_count):
+            max_index = np.argmax(result_array)
+            predicted_rating = np.round(result_array[max_index], 2)
+            result_array[max_index] = -1000
+            
+            cursor.execute('''
+                SELECT Movie.ID, Movie.title, AVG(Book.reserve_price), AVG(Book.rating)
+                FROM Movie INNER JOIN Book ON Movie.ID = Book.mov_id
+                WHERE Movie.ID = %s
+                GROUP BY Movie.ID
+                ''', max_index + 1)
+        
+            result = cursor.fetchone()
+            if result != None:
+                id, title, price, rating = result
+                if rating == None:
+                    rating = 'None'
+        
+                print(f'|{id:^5}|{title:^70}|{price:^15}|{rating:^15}|{predicted_rating:^15}')
+        
+        print('+' + '-' * 5 + '+' + '-' * 70 + '+' + '-' * 15 + '+' + '-' * 15 + '+' + '-' * 15 + '+')
 
 
-    # error message
-    print(f'User {user_id} does not exist')
-    print('Rating does not exist')
-    # YOUR CODE GOES HERE
-    pass
-
-
+def consine_similiarity_array(data: np.ndarray, tot_avg, movie_count) -> np.ndarray:
+    consine_similiarity = np.zeros((movie_count, movie_count))
+    
+    for i in range(movie_count):
+        for j in range(i, movie_count):
+            if i == j:
+                consine_similiarity[i][j] = 1
+            else:
+                consine_similiarity[i][j] = calc_cosine_similarity(data[i] - tot_avg, data[j] - tot_avg)
+                consine_similiarity[j][i] = consine_similiarity[i][j]
+    
+    return consine_similiarity
+                
+def calc_cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:    
+    return np.dot(a, b) / (np.sqrt(np.sum(np.square(a))) * np.sqrt(np.sum(np.square(b))))
+            
+    
 # Total of 70 pt.
 def main():
-    my_db.initialize_database()
-
+    
     while True:
         print('============================================================')
         print('1. initialize database')
@@ -369,13 +406,16 @@ def main():
         print('8. book a movie')
         print('9. rate a movie')
         print('10. print all users who booked for a movie')
-        print('11. print all movies rated by an user')
+        print('11. print all movies booked by an user')
         print('12. recommend a movie for a user using popularity-based method')
         print('13. recommend a movie for a user using item-based collaborative filtering')
         print('14. exit')
         print('15. reset database')
         print('============================================================')
-        menu = int(input('Select your action: '))
+        try:
+            menu = int(input('Select your action: '))
+        except ValueError:
+            print('Invalid action')
 
         if menu == 1:
             initialize_database()
