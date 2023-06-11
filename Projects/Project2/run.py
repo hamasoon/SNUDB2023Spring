@@ -14,7 +14,7 @@ def reset():
     agreement = input('Are you sure? (y/n) ').lower()
     
     if agreement == 'y':
-        my_db.initialize_database()
+        my_db.reset_database()
         print('Database successfully reset')
     else:
         print('Database reset aborted')
@@ -23,6 +23,7 @@ def reset():
 # 영화 ID, 제목, 감독, 원래 가격, 평균 예매 가격, 예매자 수, 평균 평점 순으로 출력한다.
 def print_movies():
     with my_db.connection.cursor() as cursor:
+        # get all movies
         cursor.execute('''
             SELECT Movie.ID, Movie.title, Movie.director, Movie.price, AVG(Book.reserve_price), Count(Book.person_id), AVG(Book.rating)
             FROM Movie LEFT OUTER JOIN Book ON Movie.ID = Book.mov_id 
@@ -48,6 +49,7 @@ def print_movies():
 # Problem 3 (3 pt.)
 def print_users():
     with my_db.connection.cursor() as cursor:
+        # get all users
         cursor.execute('SELECT * FROM Person ORDER BY ID ASC')
         result = cursor.fetchall()
         print('+' + '-' * 5 + '+' + '-' * 40 + '+' + '-' * 20 + '+' + '-' * 20 + '+')
@@ -84,8 +86,8 @@ def remove_movie():
 
     # success message
     print('One movie successfully removed')
-    pass
-
+    
+    
 # Problem 5 (4 pt.)
 def insert_user():
     # YOUR CODE GOES HERE
@@ -100,21 +102,19 @@ def insert_user():
 
 # Problem 7 (4 pt.)
 def remove_user():
-    # YOUR CODE GOES HERE
     user_id = input('User ID: ')
 
     with my_db.connection.cursor() as cursor:
+        # Check if user exists
         if not my_db.user_exists_id(user_id):
-            # error message
             print(f'User {user_id} does not exist')
             return
         
         cursor.execute('DELETE FROM Person WHERE ID = %s', user_id)
         my_db.connection.commit()
 
-    # success message
     print('One user successfully removed')
-    pass
+
 
 # Problem 8 (5 pt.)
 def book_movie():
@@ -132,6 +132,7 @@ def rate_movie():
     rating = input('Ratings (1~5): ')
 
     with my_db.connection.cursor() as cursor:
+        # Check if movie and user exist
         if not my_db.movie_exists_id(movie_id):
             print(f'Movie {movie_id} does not exist')
             return
@@ -141,21 +142,26 @@ def rate_movie():
             return
         
         try:
+            # Check if rating is valid
             cursor.execute('SELECT rating FROM Book WHERE mov_id = %s AND person_id = %s', (movie_id, user_id))
             result = cursor.fetchone()
+            # Data doesn't exist
             if result == None:
                 print(f'User {user_id} has not booked movie {movie_id} yet')
                 return
+            # Data exists but rating is None -> update rating
             elif result[0] is None:
                 try:
                     cursor.execute('UPDATE Book SET rating = %s WHERE mov_id = %s AND person_id = %s', (rating, movie_id, user_id))
                     my_db.connection.commit()
+                # Handle invalid rating input
                 except pymysql.err.DataError:
                     print('Rating should be an integer')
                     return
                 except pymysql.err.OperationalError:
                     print('Rating should be from 1 to 5')
                     return
+            # Data exists and rating is not None
             else:
                 print(f'User {user_id} has already rated movie {movie_id}')
                 return
@@ -163,23 +169,21 @@ def rate_movie():
             print(f'User {user_id} has not booked movie {movie_id} yet')
             return
 
-    # success message
     print('Movie successfully rated')
-    # YOUR CODE GOES HERE
-    pass
+
 
 # Problem 10 (5 pt.)
 def print_users_for_movie():
-    # YOUR CODE GOES HERE
     movie_id = input('Movie ID: ')
 
     with my_db.connection.cursor() as cursor:
+        # Check if movie exists
         if not my_db.movie_exists_id(movie_id):
-            # error message
             print(f'Movie {movie_id} does not exist')
             return
         
         try:
+            # Using INNER JOIN to get all users who booked the movie
             cursor.execute('''
             SELECT DISTINCT Person.ID, Person.name, Person.age, Book.reserve_price, Book.rating
             FROM Person
@@ -196,6 +200,7 @@ def print_users_for_movie():
                     rating = 'None'
                 print(f'|{id:^5}|{name:^40}|{age:^15}|{price:^15}|{rating:^15}')
             print('+' + '-' * 5 + '+' + '-' * 40 + '+' + '-' * 15 + '+' + '-' * 15 + '+' + '-' * 15 + '+')
+        # Handle invalid movie ID input
         except pymysql.err.DataError:
             print('Movie ID should be an integer')
             return
@@ -206,11 +211,13 @@ def print_movies_for_user():
     user_id = input('User ID: ')
 
     with my_db.connection.cursor() as cursor:
+        # Check if user exists
         if not my_db.user_exists_id(user_id):
             print(f'User {user_id} does not exist')
             return
         
         try:
+            # Using INNER JOIN to get movies that user has booked
             cursor.execute('''
                 SELECT DISTINCT Movie.ID, Movie.title, Movie.director, Book.reserve_price, Book.rating
                 FROM Movie INNER JOIN Book ON Movie.ID = Book.mov_id
@@ -226,6 +233,7 @@ def print_movies_for_user():
                     rating = 'None'
                 print(f'|{id:^5}|{title:^70}|{director:^35}|{price:^15}|{rating:^15}')
             print('+' + '-' * 5 + '+' + '-' * 70 + '+' + '-' * 35 + '+' + '-' * 15 + '+' + '-' * 15 + '+')
+        # Handle invalid user ID input
         except pymysql.err.DataError:
             print('User ID should be an integer')
             return
@@ -233,14 +241,16 @@ def print_movies_for_user():
         
 # Problem 12 (6 pt.)
 def recommend_popularity():
-    # YOUR CODE GOES HERE
     user_id = input('User ID: ')
     
     with my_db.connection.cursor() as cursor:
+        # Check if user exists
         if not my_db.user_exists_id(user_id):
             print(f'User {user_id} does not exist')
             return
         
+        # Using subquery to get movies that user has booked
+        # Then grouping and ordering by average rating and movie ID
         cursor.execute('''
             SELECT Movie.ID, Movie.title, AVG(Book.reserve_price), COUNT(Book.reserve_price), AVG(Book.rating)
             FROM Movie JOIN Book ON Movie.ID = Book.mov_id
@@ -266,6 +276,8 @@ def recommend_popularity():
             print(f'|{id:^5}|{title:^70}|{price:^15}|{popularity:^15}|{rating:^15}')
             print('+' + '-' * 5 + '+' + '-' * 70 + '+' + '-' * 15 + '+' + '-' * 15 + '+' + '-' * 15 + '+')
         
+        # Using subquery to get movies that user has booked
+        # Then grouping and ordering by number of bookings and movie ID
         cursor.execute('''
             SELECT Movie.ID, Movie.title, AVG(Book.reserve_price), COUNT(Book.reserve_price), AVG(Book.rating)
             FROM Movie JOIN Book ON Movie.ID = Book.mov_id
@@ -309,15 +321,28 @@ def recommend_item_based():
             print(f'User {user_id} does not exist')
             return
         
-        cursor.execute("SELECT COUNT(*) FROM Person")
+        # Check if user has rated any movie
+        cursor.execute('''
+            SELECT COUNT(*)
+            FROM Book
+            WHERE person_id = %s AND rating IS NOT NULL    
+            ''', user_id)
+        if cursor.fetchone()[0] == 0:
+            print("Rating does not exist")
+            return
+        
+        # get maximum ID of movie and user(due to MAX(ID) != COUNT(ID))
+        cursor.execute("SELECT MAX(ID) FROM Person")
         user_count = cursor.fetchone()[0]
         
-        cursor.execute("SELECT COUNT(*) FROM Movie")
+        cursor.execute("SELECT MAX(ID) FROM Movie")
         movie_count = cursor.fetchone()[0]
         
+        # create rating table matrix(User x Movie) and fill with nan
         item_table = np.zeros((user_count, movie_count))
         item_table[:] = np.nan
 
+        # get all rating data
         cursor.execute('''
             SELECT *
             FROM Book
@@ -325,9 +350,11 @@ def recommend_item_based():
         
         result = cursor.fetchall()
         for mov_id, person_id , _, rating in result:
+            # fill rating table with rating data if rating is exist
             if rating != None and rating > 0.5:
                 item_table[person_id-1][mov_id-1] = rating
     
+        # get movie_id index that user has not watched
         target_index = np.where(np.isnan(item_table[user_id-1]))
         item_table = np.nan_to_num(item_table)
 
@@ -341,19 +368,27 @@ def recommend_item_based():
         
         result_array = np.ndarray(movie_count)
         
-        for i in target_index[0]:
-            weight_dot_product = np.dot(sim_data[i], item_table[user_id-1]) - item_table[user_id-1][i]
-            weight_sum = np.sum(sim_data[i]) - 1
-            result_array[i] = weight_dot_product / weight_sum
+        for i in range(len(result_array)):
+            if i not in target_index[0]:
+                result_array[i] = -1000
+            else:
+                weight_dot_product = np.dot(sim_data[i], item_table[user_id-1]) - item_table[user_id-1][i]
+                weight_sum = np.sum(sim_data[i]) - 1
+                result_array[i] = weight_dot_product / weight_sum
         
         print('-' + '-' * 5 + '-' + '-' * 70 + '-' + '-' * 15 + '-' + '-' * 15 + '-' + '-' * 15 + '-')
         print("Item-based")
         print(str.format('|{:^5}|{:^70}|{:^15}|{:^15}|{:^15}', 'ID', 'TITLE', 'AVG PRICE', 'AVG RATING', 'PREDICTED RATING'))
         print('+' + '-' * 5 + '+' + '-' * 70 + '+' + '-' * 15 + '+' + '-' * 15 + '+' + '-' * 15 + '+')
         
-        for _ in range(rec_count):
+        iterate_count = 0
+        
+        #can't use for Loop becuse sometime movie ID is not exist due to deletion
+        while iterate_count < rec_count:
             max_index = np.argmax(result_array)
             predicted_rating = np.round(result_array[max_index], 2)
+            if (predicted_rating == -1000):
+                break
             result_array[max_index] = -1000
             
             cursor.execute('''
@@ -362,7 +397,7 @@ def recommend_item_based():
                 WHERE Movie.ID = %s
                 GROUP BY Movie.ID
                 ''', max_index + 1)
-        
+                
             result = cursor.fetchone()
             if result != None:
                 id, title, price, rating = result
@@ -370,6 +405,8 @@ def recommend_item_based():
                     rating = 'None'
         
                 print(f'|{id:^5}|{title:^70}|{price:^15}|{rating:^15}|{predicted_rating:^15}')
+                
+                iterate_count += 1
         
         print('+' + '-' * 5 + '+' + '-' * 70 + '+' + '-' * 15 + '+' + '-' * 15 + '+' + '-' * 15 + '+')
 

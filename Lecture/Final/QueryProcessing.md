@@ -1,15 +1,30 @@
+* 1. [Basic Steps of Query Porcessing](#BasicStepsofQueryPorcessing)
+		* 1.1. [Parsing and translation](#Parsingandtranslation)
+		* 1.2. [Optimization](#Optimization)
+		* 1.3. [Measures of Query Cost : especially for **time** cost!](#MeasuresofQueryCost:especiallyfortimecost)
+* 2. [Selection Operation](#SelectionOperation)
+		* 2.1. [Linear Searching : Scanning all block](#LinearSearching:Scanningallblock)
+		* 2.2. [Primary Index Searching](#PrimaryIndexSearching)
+		* 2.3. [Secondary Index Searching](#SecondaryIndexSearching)
+* 3. [Sort Operation](#SortOperation)
+		* 3.1. [External Sort-Merge : for M main memory block and N data block](#ExternalSort-Merge:forMmainmemoryblockandNdatablock)
+* 4. [Join Operation](#JoinOperation)
+		* 4.1. [Nested-Loop Join](#Nested-LoopJoin)
+		* 4.2. [Block Nested-Loop Join](#BlockNested-LoopJoin)
+		* 4.3. [Hash-Join](#Hash-Join)
+
 # Query Processing
 
 
-## Basic Steps of Query Porcessing
+##  1. <a name='BasicStepsofQueryPorcessing'></a>Basic Steps of Query Porcessing
 Parsing and translation &rarr; relational algebra form &rarr; Optimization &rarr;
 
 
-### Parsing and translation
+####  1.1. <a name='Parsingandtranslation'></a>Parsing and translation
 - Translate your SQL code into relational algebra expression(internal form)
 - Parser check syntax and verify relations
 
-### Optimization
+####  1.2. <a name='Optimization'></a>Optimization
 - Selecting the most efficitent *evaluation plan* for given query
     - **Evaluation plan** : Set of *primitive operations*
         - **primitive operations** : relational algebra + evaluate method
@@ -21,22 +36,22 @@ Parsing and translation &rarr; relational algebra form &rarr; Optimization &rarr
     2. Annotating resulting expressions to get alternative query plans
     3. Choosing the cheapest plan baed on estimated cost
 
-### Measures of Query Cost : especially for **time** cost!
+####  1.3. <a name='MeasuresofQueryCost:especiallyfortimecost'></a>Measures of Query Cost : especially for **time** cost!
 - Main parameter used for cost measuring
     1. number of seeks
     2. number of block transfers
     - **Not** include final output writing
 
-## Selection Operation
+##  2. <a name='SelectionOperation'></a>Selection Operation
 
-### Linear Searching : Scanning all block 
+####  2.1. <a name='LinearSearching:Scanningallblock'></a>Linear Searching : Scanning all block 
 - Cost estimate 
     - Normal case : $b_r \times t_T + 1 \times t_S$
     - Key attribute : $(b_r/ 2) \times t_T + 1 \times t_S$
     - Why seek time is 1?
         - All blocks all sequentially linked, so we don't have to seek next block
 
-### Primary Index Searching
+####  2.2. <a name='PrimaryIndexSearching'></a>Primary Index Searching
 1. Key searching
     - simply, just following b+-tree
     - Cost estimate : $h_i \times (t_T + t_S) + 1 \times (t_T + t_S)$
@@ -53,7 +68,7 @@ Parsing and translation &rarr; relational algebra form &rarr; Optimization &rarr
     2. Lower (+ equal) case
         - From first block to matching data : **doesn't need to use index**
 
-### Secondary Index Searching
+####  2.3. <a name='SecondaryIndexSearching'></a>Secondary Index Searching
 1. Key searching
     - same as primary index case
     - Cost estimate : $h_i \times (t_T + t_S) + 1 \times (t_T + t_S)$
@@ -71,9 +86,9 @@ Parsing and translation &rarr; relational algebra form &rarr; Optimization &rarr
         - From first leaf node to first matching node
     - In this case, normally linear scan could be better option
 
-## Sort Operation
+##  3. <a name='SortOperation'></a>Sort Operation
 
-### External Sort-Merge : for M main memory block and N data block
+####  3.1. <a name='ExternalSort-Merge:forMmainmemoryblockandNdatablock'></a>External Sort-Merge : for M main memory block and N data block
 1. Create sorted runs
     - Read M block from disk
     - Sorting each M in-main memory block
@@ -90,18 +105,18 @@ Parsing and translation &rarr; relational algebra form &rarr; Optimization &rarr
         - So, we need $2b_r + 2b_r \times log_{M-1}(b_r/M)$ block transfer
     - Seeks : $2\lceil b_r / M \rceil + \lceil b_r / b_b \rceil(2\lceil log_{M-1}(b_r / M)\rceil - 1)$
 
-## Join Operation
+##  4. <a name='JoinOperation'></a>Join Operation
 
-### Nested-Loop Join
+####  4.1. <a name='Nested-LoopJoin'></a>Nested-Loop Join
 - Simple case : just loop!
-    - $n_r * b_s + b_r$ block transfer
+    - $n_r \times b_s + b_r$ block transfer
         - full scanning s relation for each elements in b relation
         - so, b_s for n_r and single b_r
     - $n_r + b_r$
         - n_r means single seek for all b relation's elements
         - b_r means all b relation's block seeking
 
-### Block Nested-Loop Join
+####  4.2. <a name='BlockNested-LoopJoin'></a>Block Nested-Loop Join
 - Iterate s relation for in-memory block of b relation
 ``` python
 for b_r in B_r:
@@ -118,7 +133,7 @@ for b_s in B_s:
     - Seeks :  $\lceil b_r / (M - 2) \rceil + \lceil b_r / (M - 2) \rceil$
         - one for b, and one for s
 
-### Hash-Join
+####  4.3. <a name='Hash-Join'></a>Hash-Join
 - Making parition of b, s relation by using hash function
     - then how many parition do we need?
         - best must be a M-1(1 for input)

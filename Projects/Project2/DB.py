@@ -38,19 +38,21 @@ class Database:
             charset='utf8')
     
     
+    # Delete all table in database
+    def reset_database(self) -> None:
+        with self.connection.cursor() as cursor:
+            cursor.execute("DROP TABLE IF EXISTS Book")
+            cursor.execute("DROP TABLE IF EXISTS Movie")
+            cursor.execute("DROP TABLE IF EXISTS Person")
+    
     # Define Schema -> specific schema design is described in report
     # Table1 Movie : title, director, price -> PK(title) 
     # Table2 Person : name, age, class -> PK(name, age)
     # Table3 Book : mov_id, person_id, reserve_price, rating -> PK(title, name), FK(title, name)
     def initialize_database(self) -> None:
-        self.make_connection()
+        self.reset_database()
         
         with self.connection.cursor() as cursor:
-            # Drop tables if exists
-            cursor.execute("DROP TABLE IF EXISTS Book")
-            cursor.execute("DROP TABLE IF EXISTS Movie")
-            cursor.execute("DROP TABLE IF EXISTS Person")
-            
             # Create tables
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS Movie (
@@ -74,7 +76,7 @@ class Database:
                 CREATE TABLE IF NOT EXISTS Book (
                     mov_id INT NOT NULL,
                     person_id INT NOT NULL,
-                    reserve_price INT NOT NULL,
+                    reserve_price FLOAT NOT NULL,
                     rating INT,
                     PRIMARY KEY (mov_id, person_id),
                     FOREIGN KEY (mov_id) REFERENCES Movie(ID) ON DELETE CASCADE,
@@ -83,39 +85,23 @@ class Database:
                     CHECK (rating >= 1 AND rating <= 5)
                 )""")
         
-        #self.connection.close()
-        
         # Insert data from csv file
         self.loading_csv()
             
-        #self.make_connection()
-    
-    # What we have to check?
-    # price -> [0:100000] + INTEGER
-    # age -> [12:110] + INTEGER
-    # name + age -> PK
+    # Insert data from csv file into database
     def loading_csv(self) -> None:
+        # loading csv file
         pd.set_option('mode.chained_assignment',  None)
         raw_data = pd.read_csv('data.csv')
 
+        # split data into 3 tables (movie, person, book)
+        # drop_duplicates() is used to remove duplicate data(indicate subset to remove duplicate data based on primary key of each table)
         movie_table = raw_data[['title', 'director', 'price']].drop_duplicates(subset='title').reset_index(drop=True)
         person_table = raw_data[['name', 'age', 'class']].drop_duplicates(subset=['name', 'age']).reset_index(drop=True)
         book_table = raw_data[['title', 'name']].drop_duplicates().reset_index(drop=True)
-
-        # code to use sqlalchemy
-        # for idx, elem in self.book_table[['title', 'name']].iterrows():
-        #     price = self.movie_table['price'][elem['title']-1]
-        #     customer_class = self.person_table['class'][elem['name']-1].lower()
-
-        #     if customer_class == 'vip':
-        #         price = int(price/2)
-        #     elif customer_class == 'premium':
-        #         price = int(price*3/4)
-                
-        #     self.book_table['reserve_price'][idx] = price
-            
-        # self.book_table.rename(columns = {"title": "mov_id", "name": "person_id"}, inplace = True)
         
+        # insert data into database
+        # we don't need extra check for data beacasue we already specified constraints when create tables
         with self.connection.cursor() as cursor:
             for row in movie_table.values:
                 title, director, price = row
@@ -126,45 +112,40 @@ class Database:
             for row in book_table.values:
                 title, name = row
                 self.insert_book_with_name(title, name, True)
-        
-        # code to use sqlalchemy
-        # engine = create_engine("mysql+pymysql://DB2019_14355:DB2019_14355@astronaut.snu.ac.kr:7000/DB2019_14355", encoding='utf-8')
-        # db_connection = engine.connect()
-        
-        # self.movie_table.to_sql(name='Movie', con=db_connection, if_exists='append', index=False)  
-        # self.person_table.to_sql(name='Person', con=db_connection, if_exists='append', index=False)  
-        # self.book_table.to_sql(name='Book', con=db_connection, if_exists='append', index=False)
-        
-        # db_connection.close()
-            
+    
+    # check movie exists in database using title
     def movie_exists_title(self, title, is_first = False) -> bool:
         with self.connection.cursor() as cursor:
             cursor.execute('SELECT COUNT(ID) FROM Movie WHERE title = %s', title)
             result = cursor.fetchone()
-            if result[0] == 0:
+            if result is None or result[0] == 0:
                 return False
             else:
                 return True
-                
+    
+    # check movie exists in database using movie ID
     def movie_exists_id(self, ID) -> bool:
         with self.connection.cursor() as cursor:
             try:
                 cursor.execute('SELECT COUNT(ID) FROM Movie WHERE ID = %s', ID)
                 result = cursor.fetchone()
-                if result is None:
+                if result is None or result[0] == 0:
                     return False
                 else:
                     return True
+            # Exception handling for non-integer input
             except pymysql.err.DataError:
                 print('Movie ID should be an integer')
                 return False
     
+    # check user exists in database using name and age
     def user_exists_name(self, name, age, is_first = False) -> bool:
         with self.connection.cursor() as cursor:
             try:
                 cursor.execute('SELECT COUNT(ID) FROM Person WHERE name = %s AND age = %s', (name, age))
                 result = cursor.fetchone()
-                if result[0] == 0:
+                # if result is 0, there is no user with given name and age
+                if result is None or result[0] == 0:
                     return False
                 else:
                     return True
@@ -172,7 +153,8 @@ class Database:
                 if not is_first:
                     print('User age should be an integer')
                 return False
-            
+    
+    # check user exists in database using user ID
     def user_exists_id(self, ID) -> bool:
         with self.connection.cursor() as cursor:
             try:
@@ -186,6 +168,7 @@ class Database:
                 print('User ID should be an integer')
                 return False
             
+    # check book exists in database using movie ID and user ID
     def book_exists(self, mov_id, person_id, is_first = False) -> bool:
         with self.connection.cursor() as cursor:
             try:
@@ -199,7 +182,8 @@ class Database:
                 if not is_first:
                     print('Movie ID and User ID should be an integer')
                 return False
-            
+    
+    # insert movie into database
     def insert_movie(self, title, director, price, is_first = False) -> None:
         with self.connection.cursor() as cursor:
             # Check if movie already exists
@@ -208,13 +192,16 @@ class Database:
                     print(f'Movie {title} already exists')
                 return
             
+            # insert data into database
             try:
                 cursor.execute('INSERT INTO Movie (title, director, price) VALUES (%s, %s, %s)', (title, director, price))
                 self.connection.commit()
+            # Exception handling for non-integer input
             except pymysql.err.DataError:
                 if not is_first:
                     print('Movie price should be from 0 to 100000')
                 return
+            # Exception handling for invalid input
             except pymysql.err.OperationalError:
                 if not is_first:
                     print('Movie price should be from 0 to 100000')
@@ -232,14 +219,17 @@ class Database:
                     print(f'User {name} already exists')
                 return
             
+            # user class should be basic, premium or vip
             if user_class == 'basic' or user_class == 'premium' or user_class == 'vip':
                 try:
                     cursor.execute('INSERT INTO Person (name, age, class) VALUES (%s, %s, %s)', (name, age, user_class))
                     self.connection.commit()
+                # Exception handling for non-integer age
                 except pymysql.err.DataError:
                     if not is_first:
                         print('User age should be from 12 to 110')
                     return
+                # Exception handling for invalid age
                 except pymysql.err.OperationalError:
                     if not is_first:
                         print('User age should be from 12 to 110')
@@ -251,7 +241,8 @@ class Database:
         # success message
         if not is_first:
             print('One user successfully inserted')
-            
+    
+    # insert book into database
     def insert_book_with_name(self, title, name, is_first = False) -> None:
         with self.connection.cursor() as cursor:
             mov_id = 0
@@ -305,7 +296,7 @@ class Database:
                 cursor.execute("SELECT price FROM Movie WHERE ID = %s", mov_id)
             except pymysql.err.DataError:
                 if not is_first:
-                    print('Movie ID should be an integer')
+                    print(f'Movie {mov_id} does not exist')
                 return
             
             result = cursor.fetchone()
@@ -323,7 +314,7 @@ class Database:
                 cursor.execute("SELECT class FROM Person WHERE ID = %s", user_id)
             except pymysql.err.DataError:
                 if not is_first:
-                    print('User ID should be an integer')
+                    print(f'User {user_id} does not exist')
                 return
             
             result = cursor.fetchone()

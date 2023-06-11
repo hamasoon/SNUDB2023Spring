@@ -71,7 +71,7 @@ unlock (A) |            |
   - because, T1 may have updated data that T2 has read
 
 #### Strict / Rigorous 2PL
-- Strict 2PL : transaction hold all locks until commit
+- Strict 2PL : transaction hold write locks until commit or abort
   - Avoid Cascading Rollback
 - Rigorous 2PL : transaction hold all locks until commit or abort
   - more strict than strict 2PL
